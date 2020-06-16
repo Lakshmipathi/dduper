@@ -95,12 +95,14 @@ def ioctl_ficlonerange(dst_fd, s):
     except Exception as e:
         print "error({0})".format(e)
 
+
 def ioctl_fideduperange(src_fd, s):
 
     try:
         ioctl(src_fd, FIDEDUPERANGE, s)
     except Exception as e:
         print "error({0})".format(e)
+
 
 def cmp_files(file1, file2):
 
@@ -167,9 +169,9 @@ def do_dedupe(src_file, dst_file, dry_run):
                         else:
                             bytes_deduped = 0
                             status = 0
-                            s = struct.pack("QQHHIqQQiH",src_offset,src_len,1,0,0,dst_fd,dst_offset,bytes_deduped,status,0);
+                            s = struct.pack("QQHHIqQQiH", src_offset, src_len, 1, 0, 0, dst_fd, dst_offset, bytes_deduped, status, 0)
                             ioctl_fideduperange(src_fd, s)
-			    #print("\n bytes_deduped=%s",bytes_deduped)
+                            # print("\n bytes_deduped=%s",bytes_deduped)
 
             print "Dedupe completed for " + src_file + ":" + dst_file
             # Verify original unmodified file and newly deduped file both point to same contents
@@ -231,8 +233,8 @@ def dedupe_files(file_list, dry_run):
                 src_file = f[0]
                 dst_file = f[1]
                 if validate_files(src_file, dst_file, processed_files) is True:
-                   ret = do_dedupe(src_file, dst_file, dry_run)
-                   if ret == 1:
+                    ret = do_dedupe(src_file, dst_file, dry_run)
+                    if ret == 1:
                         # perfectly matching file found - stop re-use this file again.
                         processed_files.append(dst_file)
         else:
@@ -242,7 +244,7 @@ def dedupe_files(file_list, dry_run):
 
 def validate_file(filename):
         global run_len
-        if os.path.exists(filename) == False:
+        if os.path.exists(filename) is False:
             return False
         file_stat = os.stat(filename)
         # Verify its a unique regular file
@@ -314,7 +316,7 @@ if __name__ == '__main__':
                  help="Show version info")
 
     parser.add_argument('-m', '--fast-mode', action='store_true', dest='fast_mode',
-                help='Use ficlonerange call',default=False)
+                help='Use ficlonerange call', default=False)
 
     results = parser.parse_args()
 
