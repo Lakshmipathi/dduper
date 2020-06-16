@@ -1,0 +1,330 @@
+#!/usr/bin/env python
+
+""" dduper - BTRFS Dedupe tool.
+
+This is a offline dedupe tool. Instead of reading whole file blocks and
+computing checksum, It works by fetching checksum from BTRFS csum tree.
+This hugely improves the performance.
+
+
+"""
+import argparse
+import errno
+import hashlib
+import numpy as np
+import math
+import os
+import pdb
+import struct
+import subprocess
+import sys
+
+from collections import OrderedDict
+from fcntl import ioctl
+from itertools import combinations
+from itertools import izip_longest
+from stat import *
+#  4kb block size
+blk_size = 4
+#  no.of csum on single row - right now its 8
+no_of_chunks = 0
+FICLONERANGE = 0x4020940d
+FIDEDUPERANGE = 0xc0189436
+
+device_name = None
+skip = 0
+chunk_sz = 0
+run_len = 0
+ele_sz = 0
+fast_mode = False
+
+# Already deduped files
+processed_files = []
+
+
+# From https://stackoverflow.com/questions/434287
+def grouper(iterable, n, fillvalue=None):
+    args = [iter(iterable)] * n
+    return izip_longest(*args, fillvalue=fillvalue)
+
+
+def get_ele_size():
+
+    global no_of_chunks, run_len
+    if chunk_sz <= 0 or chunk_sz % 32 != 0:
+        print "Ensure chunk size is of multiple 32KB. (32,64,128 etc)"
+        sys.exit(-1)
+    no_of_chunks = chunk_sz / blk_size
+    ele_sz = no_of_chunks / 8
+    run_len = no_of_chunks * blk_size * 1024
+    return ele_sz
+
+
+def get_hashes(out1):
+    """
+       For each list item compute its hash and store it with offset as its key.
+    """
+    global ele_sz
+
+    if ele_sz == 1:
+        od = OrderedDict()
+        for idx, ele in enumerate(out1):
+            v = []
+            k = hashlib.md5(str(ele)).hexdigest()
+            v.append(idx)
+            if k in od:
+                print "Collison with: "+str(k) + "at offset: "+str(v)
+            od[k] = v
+    else:
+        od = OrderedDict()
+        for idx, ele in enumerate(grouper(out1, ele_sz, 'x')):
+            v = []
+            k = hashlib.md5(str(ele)).hexdigest()
+            v.append(idx)
+            if k in od:
+                print "Collison with: "+str(k) + "at offset: "+str(v)
+            od[k] = v
+
+    return od
+
+
+def ioctl_ficlonerange(dst_fd, s):
+
+    try:
+        ioctl(dst_fd, FICLONERANGE, s)
+    except Exception as e:
+        print "error({0})".format(e)
+
+def ioctl_fideduperange(src_fd, s):
+
+    try:
+        ioctl(src_fd, FIDEDUPERANGE, s)
+    except Exception as e:
+        print "error({0})".format(e)
+
+def cmp_files(file1, file2):
+
+    md1 = subprocess.Popen(['md5sum', file1], stdout=subprocess.PIPE,
+            close_fds=True).stdout.read().split(" ")[0]
+    md2 = subprocess.Popen(['md5sum', file2], stdout=subprocess.PIPE,
+            close_fds=True).stdout.read().split(" ")[0]
+    if md1 == md2:
+        return 0
+    else:
+        return 1
+
+
+def do_dedupe(src_file, dst_file, dry_run):
+
+    bkup_file = dst_file + ".__superduper"
+    src_fd = os.open(src_file, os.O_RDONLY)
+    dst_fd = os.open(dst_file, os.O_WRONLY)
+    perfect_match = 0
+
+    out1 = subprocess.Popen(['btrfs', 'inspect-internal', 'dump-csum', src_file, device_name],
+            stdout=subprocess.PIPE, close_fds=True).stdout.readlines()
+    out2 = subprocess.Popen(['btrfs', 'inspect-internal', 'dump-csum', dst_file, device_name],
+            stdout=subprocess.PIPE, close_fds=True).stdout.readlines()
+    # todo : perfect match files. Remove dst_file from further operations
+    if out1 == out2:
+        print "Prefect match : ", src_file, dst_file
+        perfect_match = 1
+
+    src_dict = get_hashes(out1)
+    dst_dict = get_hashes(out2)
+    total_entry = len(src_dict) - 1  # Fix missing final ele
+    file_size = os.path.getsize(src_file)
+
+    np1 = np.array([v for v in src_dict.keys()])
+    np2 = np.array([v for v in dst_dict.keys()])
+    matched_keys = np.intersect1d(np1, np2)
+    unmatched_keys = np.setdiff1d(np1, np2)
+
+    if dry_run == 0:
+        # todo: Clear dict/np/list if there are not used further
+        # todo : handle same content within single file
+
+        if matched_keys is not None:
+            if skip == 0:
+                bkup2 = subprocess.Popen(['cp', '--reflink=always', dst_file, bkup_file], stdout=subprocess.PIPE)
+            print "*" * 24
+            # print "matched regions"
+            for location in matched_keys:
+                    entry = src_dict[location][0]
+                    src_len = no_of_chunks * blk_size * 1024
+                    src_offset = src_dict[location][0] * src_len
+
+                    multi_dst_offsets = dst_dict[location]  # list
+                    for offset in multi_dst_offsets:
+                        dst_offset = offset * src_len
+
+                        if entry == total_entry:  # fix final ele
+                            src_len = file_size - src_offset
+                        # print "matching chunk : src offset:"+str(src_offset) +" src_len="+ str(src_len) +" dest_off="+ str(dst_offset)
+                        if fast_mode is True:
+                            s = struct.pack("qQQQ", src_fd, src_offset, src_len, dst_offset)
+                            ioctl_ficlonerange(dst_fd, s)
+                        else:
+                            bytes_deduped = 0
+                            status = 0
+                            s = struct.pack("QQHHIqQQiH",src_offset,src_len,1,0,0,dst_fd,dst_offset,bytes_deduped,status,0);
+                            ioctl_fideduperange(src_fd, s)
+			    #print("\n bytes_deduped=%s",bytes_deduped)
+
+            print "Dedupe completed for " + src_file + ":" + dst_file
+            # Verify original unmodified file and newly deduped file both point to same contents
+            if skip == 0:
+                ret = cmp_files(dst_file, bkup_file)
+                if ret == 0:
+                    print "Dedupe validation successful " + src_file + ":" + dst_file
+                    # Removing temporary backup file path
+                    os.unlink(bkup_file)
+                else:
+                    print "WARNING: Dedupe for " + dst_file + " Resulted in corruption" + \
+                          " Backup file path " + bkup_file
+
+    # Close open fds
+    os.close(src_fd)
+    os.close(dst_fd)
+
+    print "Summary"
+    print "blk_size : %d chunksize : %d" % (blk_size, chunk_sz)
+    print src_file + " has " + str(len(src_dict)) + " chunks"
+    print dst_file + " has " + str(len(dst_dict)) + " chunks"
+    print "Matched chunks : " + str(len(matched_keys))
+    print "Unmatched chunks: " + str(len(unmatched_keys))
+    return perfect_match
+
+
+def validate_files(src_file, dst_file, processed_files):
+        global run_len
+        if src_file in processed_files:
+            return False
+        if dst_file in processed_files:
+            return False
+        src_stat = os.stat(src_file)
+        dst_stat = os.stat(dst_file)
+        # Verify its a unique regular file
+        if (S_ISREG(src_stat.st_mode) == S_ISREG(dst_stat.st_mode) and
+           (src_stat.st_ino != dst_stat.st_ino) and
+           (src_stat.st_size >= 4096) and
+           (dst_stat.st_size >= 4096) and
+           (src_stat.st_size >= run_len) and
+           (dst_stat.st_size >= run_len)):
+            return True
+        print "Skipped", src_file, dst_file, "not unique regular files or \
+               file size < 4kb or size < " + str(run_len)
+        return False
+
+
+def dedupe_files(file_list, dry_run):
+        ret = 0
+        global processed_files
+        if len(file_list) == 2:
+            src_file = file_list[0]
+            dst_file = file_list[1]
+            if validate_files(src_file, dst_file, processed_files) is True:
+                ret = do_dedupe(src_file, dst_file, dry_run)
+        elif len(file_list) > 2:
+            comb = combinations(file_list, 2)
+            for f in comb:
+                src_file = f[0]
+                dst_file = f[1]
+                if validate_files(src_file, dst_file, processed_files) is True:
+                   ret = do_dedupe(src_file, dst_file, dry_run)
+                   if ret == 1:
+                        # perfectly matching file found - stop re-use this file again.
+                        processed_files.append(dst_file)
+        else:
+            print "Single file given"
+            return
+
+
+def validate_file(filename):
+        global run_len
+        if os.path.exists(filename) == False:
+            return False
+        file_stat = os.stat(filename)
+        # Verify its a unique regular file
+        if (S_ISREG(file_stat.st_mode) and (file_stat.st_size >= 4096) and
+        (file_stat.st_size >= run_len)):
+            return True
+        else:
+            print "Skipped", filename, "not unique regular files or \
+            file size < 4kb or size < " + str(run_len)
+        return False
+
+
+def dedupe_dir(dir_path, dry_run, recurse):
+        file_list = []
+        if recurse == 1:
+            for path, dirs, files in os.walk(dir_path):
+                for filename in files:
+                    fn = os.path.join(path, filename)
+                    if validate_file(fn) is True:
+                        file_list.append(fn)
+        else:
+            for fi in os.listdir(dir_path):
+                if os.path.isfile(os.path.join(dir_path, fi)):
+                    fn = os.path.join(dir_path, fi)
+                    if validate_file(fn) is True:
+                        file_list.append(fn)
+        dedupe_files(file_list, dry_run)
+
+
+def main(results):
+
+    if results.file_list is not None:
+        dedupe_files(results.file_list, results.dry_run)
+
+    if results.dir_path is not None:
+        dedupe_dir(results.dir_path, results.dry_run, results.recurse)
+
+    return
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-p', '--device', action='store', dest='device_name',
+                type=str, help='Device with BTRFS partition (ex: /dev/sda3) ',
+                required=True)
+
+    single = parser.add_mutually_exclusive_group()
+
+    single.add_argument('-d', '--dir', action='store', dest='dir_path',
+                type=str, help='Dedupe Given directory', required=False)
+
+    single.add_argument('-f', '--files', action='store', dest='file_list',
+                nargs='+', help='Dedupe List of files', type=str, required=False)
+
+    parser.add_argument('-r', '--recurse', action='store_true', dest='recurse',
+                help='Parse dir recursively (used along with -d)')
+
+    parser.add_argument('-D', '--dry-run', action='store_true', dest='dry_run',
+                help='Show summary of dedupe details')
+
+    parser.add_argument('-s', '--skip', action='store_true', dest='skip',
+                help='Will skip backup/validation process.')
+
+    parser.add_argument('-c', '--chunk-size', action='store', dest='chunk_sz',
+                type=int, default=32, help='Dedupe chunk size in KB', required=False)
+
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s 0.01',
+                 help="Show version info")
+
+    parser.add_argument('-m', '--fast-mode', action='store_true', dest='fast_mode',
+                help='Use ficlonerange call',default=False)
+
+    results = parser.parse_args()
+
+    if not (results.dir_path or results.file_list):
+            parser.error('No action requested, add --files or --dir')
+
+    device_name = results.device_name
+    skip = results.skip
+    chunk_sz = results.chunk_sz
+    fast_mode = results.fast_mode
+    ele_sz = get_ele_size()
+
+    main(results)
