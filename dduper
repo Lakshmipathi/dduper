@@ -74,6 +74,8 @@ def get_hashes(out1):
             v.append(idx)
             if k in od:
                 print "Collison with: "+str(k) + "at offset: "+str(v)
+                # Get previous value
+                v.extend(od.get(k))
             od[k] = v
     else:
         od = OrderedDict()
@@ -83,6 +85,8 @@ def get_hashes(out1):
             v.append(idx)
             if k in od:
                 print "Collison with: "+str(k) + "at offset: "+str(v)
+                # Get previous value
+                v.extend(od.get(k))
             od[k] = v
 
     return od
