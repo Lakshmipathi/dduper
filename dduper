@@ -65,6 +65,7 @@ def get_hashes(out1):
        For each list item compute its hash and store it with offset as its key.
     """
     global ele_sz
+    ccount = 0
 
     if ele_sz == 1:
         od = OrderedDict()
@@ -76,6 +77,7 @@ def get_hashes(out1):
                 print "Collison with: "+str(k) + "at offset: "+str(v)
                 # Get previous value
                 v.extend(od.get(k))
+                ccount += 1
             od[k] = v
     else:
         od = OrderedDict()
@@ -87,9 +89,10 @@ def get_hashes(out1):
                 print "Collison with: "+str(k) + "at offset: "+str(v)
                 # Get previous value
                 v.extend(od.get(k))
+                ccount += 1
             od[k] = v
 
-    return od
+    return od, ccount
 
 
 def ioctl_ficlonerange(dst_fd, s):
@@ -136,8 +139,8 @@ def do_dedupe(src_file, dst_file, dry_run):
         print "Prefect match : ", src_file, dst_file
         perfect_match = 1
 
-    src_dict = get_hashes(out1)
-    dst_dict = get_hashes(out2)
+    src_dict, src_ccount = get_hashes(out1)
+    dst_dict, dst_ccount = get_hashes(out2)
     total_entry = len(src_dict) - 1  # Fix missing final ele
     file_size = os.path.getsize(src_file)
 
@@ -150,6 +153,7 @@ def do_dedupe(src_file, dst_file, dry_run):
         # todo: Clear dict/np/list if there are not used further
         # todo : handle same content within single file
 
+        total_bytes_deduped = 0
         if matched_keys is not None:
             if skip == 0:
                 bkup2 = subprocess.Popen(['cp', '--reflink=always', dst_file, bkup_file], stdout=subprocess.PIPE)
@@ -170,11 +174,13 @@ def do_dedupe(src_file, dst_file, dry_run):
                         if fast_mode is True:
                             s = struct.pack("qQQQ", src_fd, src_offset, src_len, dst_offset)
                             ioctl_ficlonerange(dst_fd, s)
+                            total_bytes_deduped += src_len
                         else:
                             bytes_deduped = 0
                             status = 0
                             s = struct.pack("QQHHIqQQiH", src_offset, src_len, 1, 0, 0, dst_fd, dst_offset, bytes_deduped, status, 0)
                             ioctl_fideduperange(src_fd, s)
+                            total_bytes_deduped += bytes_deduped
                             # print("\n bytes_deduped=%s",bytes_deduped)
 
             print "Dedupe completed for " + src_file + ":" + dst_file
@@ -194,11 +200,28 @@ def do_dedupe(src_file, dst_file, dry_run):
     os.close(dst_fd)
 
     print "Summary"
-    print "blk_size : %d chunksize : %d" % (blk_size, chunk_sz)
-    print src_file + " has " + str(len(src_dict)) + " chunks"
-    print dst_file + " has " + str(len(dst_dict)) + " chunks"
-    print "Matched chunks : " + str(len(matched_keys))
-    print "Unmatched chunks: " + str(len(unmatched_keys))
+    print "blk_size : %d KB  chunksize : %d KB" % (blk_size, chunk_sz)
+    if src_ccount == 0:
+        print src_file + " has " + str(len(src_dict)) + " chunks"
+    else:
+        print src_file + " has " + str(len(src_dict) + src_ccount) + " chunks"
+    if dst_ccount == 0:
+        print dst_file + " has " + str(len(dst_dict)) + " chunks"
+    else:
+        print dst_file + " has " + str(len(dst_dict) + dst_ccount) + " chunks"
+    # Compute matched and unmatched chunk info
+    matched_chunks = 0
+    for k in matched_keys:
+        matched_chunks += len(dst_dict.get(k))
+    unmatched_chunks = 0
+    for k in unmatched_keys:
+        unmatched_chunks += len(src_dict.get(k))
+    print "Matched chunks : " + str(matched_chunks)
+    print "Unmatched chunks: " + str(unmatched_chunks)
+    if dry_run == 0:
+        print "Total size (KB) deduped: " + str(total_bytes_deduped / 1024)
+    else:
+        print "Total size (KB) size available for dedupe: %d " % (len(matched_keys) * chunk_sz)
     return perfect_match
 
 
