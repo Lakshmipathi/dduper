@@ -50,17 +50,17 @@ To dedupe entire directory also parse its sub-directories on sda1:
 Changing dedupe chunk size:
 ---------------------------
 
-By default, we use 32KB chunk size. This can be modified using chunk-size
+By default, dduper uses 32KB chunk size. This can be modified using chunk-size
 option. Below usage shows chunk size with 1MB
 
 `python dduper --device /dev/sda1 --files /mnt/f1 /mnt/f2 --chunk-size 1024`
 
-Display information:
---------------------
+Display stats:
+-------------
 
 To perform dry-run to display details without performing dedupe:
 
-`python dduper --device /dev/sda1 --files /mnt/f1 /mnt/f2 --dry-run `
+`python dduper --device /dev/sda1 --files /mnt/f1 /mnt/f2 --dry-run --show-summary`
 
 Skip validation:
 ----------------
@@ -69,3 +69,14 @@ To skip file validation after dedupe (file contents never read):
 
 `python dduper --device /dev/sda1 --files /mnt/f1 /mnt/f2 --skip `
 
+To Analyze stats with different chunk size:
+-------------------------------------------
+You can analyze which chunk size provides better deduplication.
+
+First ran with default chunk size (32KB) value then try different chunk-size  and verify the stats.
+
+`python dduper --device /dev/sda1 --files /mnt/f1 /mnt/f2 --dry-run --show-summary`
+
+`python dduper --device /dev/sda1 --files /mnt/f1 /mnt/f2 --dry-run --show-summary --chunk-size 1024`
+
+`python dduper --device /dev/sda1 --files /mnt/f1 /mnt/f2 --dry-run --show-summary --chunk-size 2048`
