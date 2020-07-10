@@ -38,9 +38,13 @@ ele_sz = 0
 fast_mode = False
 verbose = 0
 show_summary = 0
+bi_dedupe = 0
 
 # Already deduped files
 processed_files = []
+
+# dedupe strategy
+enable_bidirectional_dedupe = False
 
 
 # From https://stackoverflow.com/questions/434287
@@ -168,10 +172,88 @@ def btrfs_dump_csum(filename):
         close_fds=True).stdout.readlines()
     return out
 
+def analyze_matched_regions(matched_keys,src_dict, dst_dict, bi_dict):
+
+    global enable_bidirectional_dedupe
+
+
+    '''
+    for k,v in src_dict.items():
+        # print("src: %s %d" % (k,len(v)))
+        if len(v) > 1 and k in dst_dict:
+            print("src has multiple offsets")
+            print("Yes key present- It has offsets")
+            if len(dst_dict.get(k)) > 1:
+            # print("src has multiple offsets")
+              dlist = dst_dict.get(k)
+            # print("Yes key present- It has %d offsets", dlist)
+            if len(dlist) > 1:
+                # print("dst has multiple offsets too")
+                enable_bidirectional_dedupe = True
+                # Don't dedupe dst_dict first offset. Put it another dict.
+                bi_dict[k] = dlist[0] 
+                #pdb.set_trace()
+                #dlist.pop(0)
+                #dst_dict[k] = dlist
+    '''
+
+    for key in matched_keys:
+        if len(src_dict.get(key)) > 1 and len(dst_dict.get(key)) > 1:
+            bi_dict[key] = dst_dict[key][0]
+            del dst_dict[key][0]
+    return bi_dict
+
+def do_reverse_dedupe(bi_dict, bi_target_dict, src_fd, dst_fd):
+    '''
+    bi_dict -> treated as source
+    bi_target_dict -> treated as destination
+    '''
+    # pdb.set_trace()
+    # print "matched regions"
+    rev_total_bytes_deduped = 0
+    for location in bi_dict.keys():
+        src_len = no_of_chunks * blk_size * 1024
+        assert src_len < 16777216  # 16MB limit
+        src_offset = bi_dict[location] * src_len
+
+        multi_target_offsets = bi_target_dict[location]  # list
+        multi_target_offsets.pop(0)
+        for offset in multi_target_offsets:
+            dst_offset = offset * src_len
+
+            # if entry == total_entry:  # fix final ele
+            #     src_len = src_file_sz - src_offset
+            rev_total_bytes_deduped += do_dduper(src_fd, dst_fd, src_len, src_offset, dst_offset)
+
+
+def do_dduper(src_fd, dst_fd, src_len, src_offset, dst_offset):
+
+    global fast_mode
+
+    # print "matching chunk : src offset:"+str(src_offset) +" src_len="+ str(src_len) +" dest_off="+ str(dst_offset)
+    # pdb.set_trace()
+    if fast_mode is True:
+        s = struct.pack("qQQQ", src_fd, src_offset, src_len,
+                         dst_offset)
+        ioctl_ficlonerange(dst_fd, s)
+        total_bytes_deduped = src_len
+    else:
+        bytes_deduped = 0
+        status = 0
+        s = struct.pack("QQHHIqQQiH", src_offset, src_len, 1,
+                         0, 0, dst_fd, dst_offset,
+                         bytes_deduped, status, 0)
+        ioctl_fideduperange(src_fd, s)
+        total_bytes_deduped = bytes_deduped
+        # print("\n bytes_deduped=%s",bytes_deduped)
+    return total_bytes_deduped
+
 
 def do_dedupe(src_file, dst_file, dry_run):
 
     global ele_sz
+    bi_dict = OrderedDict()
+    bi_target_dict = OrderedDict()
 
     src_file_sz = os.path.getsize(src_file)
 
@@ -204,6 +286,8 @@ def do_dedupe(src_file, dst_file, dry_run):
     unmatched_keys = np.setdiff1d(np1, np2)
     total_bytes_deduped = 0
 
+    #analyze_matched_regions(matched_keys, src_dict, dst_dict, bi_dict)
+
     if dry_run == 0:
         # todo: Clear dict/np/list if there are not used further
         # todo : handle same content within single file
@@ -227,22 +311,8 @@ def do_dedupe(src_file, dst_file, dry_run):
 
                     if entry == total_entry:  # fix final ele
                         src_len = src_file_sz - src_offset
-                    # print "matching chunk : src offset:"+str(src_offset) +" src_len="+ str(src_len) +" dest_off="+ str(dst_offset)
-                    if fast_mode is True:
-                        s = struct.pack("qQQQ", src_fd, src_offset, src_len,
-                                        dst_offset)
-                        ioctl_ficlonerange(dst_fd, s)
-                        total_bytes_deduped += src_len
-                    else:
-                        bytes_deduped = 0
-                        status = 0
-                        s = struct.pack("QQHHIqQQiH", src_offset, src_len, 1,
-                                        0, 0, dst_fd, dst_offset,
-                                        bytes_deduped, status, 0)
-                        ioctl_fideduperange(src_fd, s)
-                        total_bytes_deduped += bytes_deduped
-                        # print("\n bytes_deduped=%s",bytes_deduped)
 
+                    total_bytes_deduped += do_dduper(src_fd, dst_fd, src_len, src_offset, dst_offset)
             print "Dedupe completed for " + src_file + ":" + dst_file
 
             # Verify original unmodified file and newly deduped file both point to same contents
@@ -252,6 +322,20 @@ def do_dedupe(src_file, dst_file, dry_run):
     # Close open fds
     os.close(src_fd)
     os.close(dst_fd)
+
+    # check for bi-directional dedupe
+    if enable_bidirectional_dedupe is True and dry_run == 0 and bi_dedupe is True:
+        src_fd = os.open(dst_file, os.O_RDONLY) #swap files
+        dst_fd = os.open(src_file, os.O_WRONLY)
+        print("We have to perform bidirectional dedupe too")
+        for k,v in bi_dict.items():
+              print k,v 
+              bi_target_dict = src_dict
+              rev_total_bytes_deduped = do_reverse_dedupe(bi_dict, bi_target_dict,src_fd, dst_fd)
+              print "Reverse Dedupe completed for " + dst_file + ":" + src_file
+              print "Reverse dedupd claimed " + str(rev_total_bytes_deduped) + "bytes"
+        
+ 
     if show_summary == 0:
         return perfect_match
 
@@ -468,6 +552,12 @@ if __name__ == '__main__':
                         dest='show_summary',
                         help='Show summary of dedupe results')
 
+    parser.add_argument('-b',
+                        '--bi-dedupe',
+                        action='store_true',
+                        dest='bi_dedupe',
+                        help='Dedupe both files!')
+
     results = parser.parse_args()
 
     if not (results.dir_path or results.file_list):
@@ -480,5 +570,6 @@ if __name__ == '__main__':
     ele_sz = get_ele_size(chunk_sz)
     verbose = results.verbose
     show_summary = results.show_summary
+    bi_dedupe = results.bi_dedupe
 
     main(results)
