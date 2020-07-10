@@ -37,6 +37,8 @@ chunk_sz = 0
 run_len = 0
 ele_sz = 0
 fast_mode = False
+src_file_sz = 0
+verbose = 0
 
 # Already deduped files
 processed_files = []
@@ -48,8 +50,7 @@ def grouper(iterable, n, fillvalue=None):
     return izip_longest(*args, fillvalue=fillvalue)
 
 
-def get_ele_size():
-
+def get_ele_size(chunk_sz):
     global no_of_chunks, run_len
     if chunk_sz <= 0 or chunk_sz % 32 != 0:
         print "Ensure chunk size is of multiple 32KB. (32,64,128 etc)"
@@ -57,6 +58,7 @@ def get_ele_size():
     no_of_chunks = chunk_sz / blk_size
     ele_sz = no_of_chunks / 8
     run_len = no_of_chunks * blk_size * 1024
+    print("\n chunk_sz=%d, no_of_chunks=%d, eke_sz=%d ",chunk_sz, no_of_chunks, ele_sz)
     return ele_sz
 
 
@@ -67,6 +69,7 @@ def get_hashes(out1):
     global ele_sz
     ccount = 0
 
+    print "Running with ele_sz " + str(ele_sz)
     if ele_sz == 1:
         od = OrderedDict()
         for idx, ele in enumerate(out1):
@@ -74,7 +77,8 @@ def get_hashes(out1):
             k = hashlib.md5(str(ele)).hexdigest()
             v.append(idx)
             if k in od:
-                print "Collison with: "+str(k) + "at offset: "+str(v)
+                if verbose:
+                    print "Collison with: "+str(k) + "at offset: "+str(v)
                 # Get previous value
                 v.extend(od.get(k))
                 ccount += 1
@@ -86,7 +90,8 @@ def get_hashes(out1):
             k = hashlib.md5(str(ele)).hexdigest()
             v.append(idx)
             if k in od:
-                print "Collison with: "+str(k) + "at offset: "+str(v)
+                if verbose:
+                    print "Collison with: "+str(k) + "at offset: "+str(v)
                 # Get previous value
                 v.extend(od.get(k))
                 ccount += 1
@@ -125,10 +130,13 @@ def cmp_files(file1, file2):
 
 def do_dedupe(src_file, dst_file, dry_run):
 
+    global src_file_sz, ele_sz
+
     bkup_file = dst_file + ".__superduper"
     src_fd = os.open(src_file, os.O_RDONLY)
     dst_fd = os.open(dst_file, os.O_WRONLY)
     perfect_match = 0
+    perfect_match_chunk_sz = 0
 
     out1 = subprocess.Popen(['btrfs', 'inspect-internal', 'dump-csum', src_file, device_name],
             stdout=subprocess.PIPE, close_fds=True).stdout.readlines()
@@ -138,9 +146,26 @@ def do_dedupe(src_file, dst_file, dry_run):
     if out1 == out2:
         print "Prefect match : ", src_file, dst_file
         perfect_match = 1
+        ## automatically change chunk size in case of prefect match.
+        fz_kb = src_file_sz >> 10
+        fz_mb = src_file_sz >> 20
+        print "File size is: " + str(fz_kb) + "KB or " + str(fz_mb) + "MB" 
+        if fz_mb > 100: #file > 100MB set chunk size 8MB 
+            perfect_match_chunk_sz = 8192
+            ele_sz = get_ele_size(1024 * 8)
+        elif fz_mb > 10: #file > 10MB set chunk size 1MB 
+            perfect_match_chunk_sz = 1024
+            ele_sz = get_ele_size(1024)
+        elif fz_kb > 512: # file > 512KB chunk_size 128KB
+            perfect_match_chunk_sz = 128
+            ele_sz = get_ele_size(128)
+        # Get hashes now
+        src_dict, src_ccount = get_hashes(out1)
+        dst_dict, dst_ccount = src_dict, src_ccount
+    else:
+        src_dict, src_ccount = get_hashes(out1)
+        dst_dict, dst_ccount = get_hashes(out2)
 
-    src_dict, src_ccount = get_hashes(out1)
-    dst_dict, dst_ccount = get_hashes(out2)
     total_entry = len(src_dict) - 1  # Fix missing final ele
     file_size = os.path.getsize(src_file)
 
@@ -148,12 +173,12 @@ def do_dedupe(src_file, dst_file, dry_run):
     np2 = np.array([v for v in dst_dict.keys()])
     matched_keys = np.intersect1d(np1, np2)
     unmatched_keys = np.setdiff1d(np1, np2)
+    total_bytes_deduped = 0
 
     if dry_run == 0:
         # todo: Clear dict/np/list if there are not used further
         # todo : handle same content within single file
 
-        total_bytes_deduped = 0
         if matched_keys is not None:
             if skip == 0:
                 bkup2 = subprocess.Popen(['cp', '--reflink=always', dst_file, bkup_file], stdout=subprocess.PIPE)
@@ -198,9 +223,15 @@ def do_dedupe(src_file, dst_file, dry_run):
     # Close open fds
     os.close(src_fd)
     os.close(dst_fd)
+    if perfect_match == 1:
+        return show_summary(blk_size, perfect_match_chunk_sz, src_file, dst_file, src_ccount, dst_ccount, total_bytes_deduped, perfect_match, dry_run,src_dict, dst_dict, matched_keys, unmatched_keys)
+    else:
+        return show_summary(blk_size, chunk_sz, src_file, dst_file, src_ccount, dst_ccount, total_bytes_deduped, perfect_match, dry_run,src_dict, dst_dict, matched_keys, unmatched_keys)
 
+def show_summary(blk_size, chunk_sz, src_file, dst_file, src_ccount, dst_ccount, total_bytes_deduped, perfect_match,dry_run,src_dict, dst_dict, matched_keys, unmatched_keys):
     print "Summary"
     print "blk_size : %d KB  chunksize : %d KB" % (blk_size, chunk_sz)
+
     if src_ccount == 0:
         print src_file + " has " + str(len(src_dict)) + " chunks"
     else:
@@ -209,6 +240,7 @@ def do_dedupe(src_file, dst_file, dry_run):
         print dst_file + " has " + str(len(dst_dict)) + " chunks"
     else:
         print dst_file + " has " + str(len(dst_dict) + dst_ccount) + " chunks"
+
     # Compute matched and unmatched chunk info
     matched_chunks = 0
     for k in matched_keys:
@@ -216,23 +248,25 @@ def do_dedupe(src_file, dst_file, dry_run):
     unmatched_chunks = 0
     for k in unmatched_keys:
         unmatched_chunks += len(src_dict.get(k))
+
     print "Matched chunks : " + str(matched_chunks)
     print "Unmatched chunks: " + str(unmatched_chunks)
     if dry_run == 0:
         print "Total size (KB) deduped: " + str(total_bytes_deduped / 1024)
     else:
-        print "Total size (KB) size available for dedupe: %d " % (len(matched_keys) * chunk_sz)
+        print "Total size (KB) available for dedupe: %d " % (matched_chunks * chunk_sz)
     return perfect_match
 
 
 def validate_files(src_file, dst_file, processed_files):
-        global run_len
+        global run_len, src_file_sz 
         if src_file in processed_files:
             return False
         if dst_file in processed_files:
             return False
         src_stat = os.stat(src_file)
         dst_stat = os.stat(dst_file)
+        src_file_sz = src_stat.st_size
         # Verify its a unique regular file
         if (S_ISREG(src_stat.st_mode) == S_ISREG(dst_stat.st_mode) and
            (src_stat.st_ino != dst_stat.st_ino) and
@@ -345,6 +379,9 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--fast-mode', action='store_true', dest='fast_mode',
                 help='Use ficlonerange call', default=False)
 
+    parser.add_argument('-V', '--verbose', action='store_true', dest='verbose',
+                help='Show logs messages')
+
     results = parser.parse_args()
 
     if not (results.dir_path or results.file_list):
@@ -354,6 +391,7 @@ if __name__ == '__main__':
     skip = results.skip
     chunk_sz = results.chunk_sz
     fast_mode = results.fast_mode
-    ele_sz = get_ele_size()
+    ele_sz = get_ele_size(chunk_sz)
+    verbose = results.verbose
 
     main(results)
