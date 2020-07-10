@@ -36,7 +36,6 @@ chunk_sz = 0
 run_len = 0
 ele_sz = 0
 fast_mode = False
-src_file_sz = 0
 verbose = 0
 show_summary = 0
 
@@ -130,9 +129,51 @@ def cmp_files(file1, file2):
         return 1
 
 
+def validate_results(src_file, dst_file, bkup_file):
+
+    ret = cmp_files(dst_file, bkup_file)
+    if ret == 0:
+        print "Dedupe validation successful " + src_file + ":" + dst_file
+        # Removing temporary backup file path
+        os.unlink(bkup_file)
+    else:
+        print "WARNING: Dedupe for " + dst_file + " Resulted in corruption" + \
+              " Backup file path " + bkup_file
+
+
+def auto_adjust_chunk_sz(src_file_sz):
+    ## automatically change chunk size in case of prefect match.
+    fz_kb = src_file_sz >> 10
+    fz_mb = src_file_sz >> 20
+    # print "File size is: " + str(fz_kb) + "KB or " + str(fz_mb) + "MB"
+    if fz_mb > 100:  #file > 100MB set chunk size 8MB
+        perfect_match_chunk_sz = 8192
+        ele_sz = get_ele_size(1024 * 8)
+    elif fz_mb > 10:  #file > 10MB set chunk size 1MB
+        perfect_match_chunk_sz = 1024
+        ele_sz = get_ele_size(1024)
+    elif fz_kb > 512:  # file > 512KB chunk_size 128KB
+        perfect_match_chunk_sz = 128
+        ele_sz = get_ele_size(128)
+
+    return perfect_match_chunk_sz, ele_sz
+
+
+def btrfs_dump_csum(filename):
+    global device_name
+
+    out = subprocess.Popen(
+        ['btrfs', 'inspect-internal', 'dump-csum', filename, device_name],
+        stdout=subprocess.PIPE,
+        close_fds=True).stdout.readlines()
+    return out
+
+
 def do_dedupe(src_file, dst_file, dry_run):
 
-    global src_file_sz, ele_sz
+    global ele_sz
+
+    src_file_sz = os.path.getsize(src_file)
 
     bkup_file = dst_file + ".__superduper"
     src_fd = os.open(src_file, os.O_RDONLY)
@@ -140,31 +181,14 @@ def do_dedupe(src_file, dst_file, dry_run):
     perfect_match = 0
     perfect_match_chunk_sz = 0
 
-    out1 = subprocess.Popen(
-        ['btrfs', 'inspect-internal', 'dump-csum', src_file, device_name],
-        stdout=subprocess.PIPE,
-        close_fds=True).stdout.readlines()
-    out2 = subprocess.Popen(
-        ['btrfs', 'inspect-internal', 'dump-csum', dst_file, device_name],
-        stdout=subprocess.PIPE,
-        close_fds=True).stdout.readlines()
+    out1 = btrfs_dump_csum(src_file)
+    out2 = btrfs_dump_csum(dst_file)
+
     # todo : perfect match files. Remove dst_file from further operations
     if out1 == out2:
         print "Prefect match : ", src_file, dst_file
         perfect_match = 1
-        ## automatically change chunk size in case of prefect match.
-        fz_kb = src_file_sz >> 10
-        fz_mb = src_file_sz >> 20
-        # print "File size is: " + str(fz_kb) + "KB or " + str(fz_mb) + "MB"
-        if fz_mb > 100:  #file > 100MB set chunk size 8MB
-            perfect_match_chunk_sz = 8192
-            ele_sz = get_ele_size(1024 * 8)
-        elif fz_mb > 10:  #file > 10MB set chunk size 1MB
-            perfect_match_chunk_sz = 1024
-            ele_sz = get_ele_size(1024)
-        elif fz_kb > 512:  # file > 512KB chunk_size 128KB
-            perfect_match_chunk_sz = 128
-            ele_sz = get_ele_size(128)
+        perfect_match_chunk_sz, ele_sz = auto_adjust_chunk_sz(src_file_sz)
         # Get hashes now
         src_dict, src_ccount = get_hashes(out1)
         dst_dict, dst_ccount = src_dict, src_ccount
@@ -173,7 +197,6 @@ def do_dedupe(src_file, dst_file, dry_run):
         dst_dict, dst_ccount = get_hashes(out2)
 
     total_entry = len(src_dict) - 1  # Fix missing final ele
-    file_size = os.path.getsize(src_file)
 
     np1 = np.array([v for v in src_dict.keys()])
     np2 = np.array([v for v in dst_dict.keys()])
@@ -203,7 +226,7 @@ def do_dedupe(src_file, dst_file, dry_run):
                     dst_offset = offset * src_len
 
                     if entry == total_entry:  # fix final ele
-                        src_len = file_size - src_offset
+                        src_len = src_file_sz - src_offset
                     # print "matching chunk : src offset:"+str(src_offset) +" src_len="+ str(src_len) +" dest_off="+ str(dst_offset)
                     if fast_mode is True:
                         s = struct.pack("qQQQ", src_fd, src_offset, src_len,
@@ -221,16 +244,10 @@ def do_dedupe(src_file, dst_file, dry_run):
                         # print("\n bytes_deduped=%s",bytes_deduped)
 
             print "Dedupe completed for " + src_file + ":" + dst_file
+
             # Verify original unmodified file and newly deduped file both point to same contents
             if skip == 0:
-                ret = cmp_files(dst_file, bkup_file)
-                if ret == 0:
-                    print "Dedupe validation successful " + src_file + ":" + dst_file
-                    # Removing temporary backup file path
-                    os.unlink(bkup_file)
-                else:
-                    print "WARNING: Dedupe for " + dst_file + " Resulted in corruption" + \
-                          " Backup file path " + bkup_file
+                validate_results(src_file, dst_file, bkup_file)
 
     # Close open fds
     os.close(src_fd)
@@ -238,24 +255,23 @@ def do_dedupe(src_file, dst_file, dry_run):
     if show_summary == 0:
         return perfect_match
 
+    return display_summary(blk_size, chunk_sz, perfect_match_chunk_sz,
+                           src_file, dst_file, src_ccount, dst_ccount,
+                           total_bytes_deduped, perfect_match, dry_run,
+                           src_dict, dst_dict, matched_keys, unmatched_keys)
+
+
+def display_summary(blk_size, chunk_sz, perfect_match_chunk_sz, src_file,
+                    dst_file, src_ccount, dst_ccount, total_bytes_deduped,
+                    perfect_match, dry_run, src_dict, dst_dict, matched_keys,
+                    unmatched_keys):
     if perfect_match == 1:
-        return display_summary(blk_size, perfect_match_chunk_sz, src_file,
-                               dst_file, src_ccount, dst_ccount,
-                               total_bytes_deduped, perfect_match, dry_run,
-                               src_dict, dst_dict, matched_keys,
-                               unmatched_keys)
+        chunk = perfect_match_chunk_sz
     else:
-        return display_summary(blk_size, chunk_sz, src_file, dst_file,
-                               src_ccount, dst_ccount, total_bytes_deduped,
-                               perfect_match, dry_run, src_dict, dst_dict,
-                               matched_keys, unmatched_keys)
+        chunk = chunk_sz
 
-
-def display_summary(blk_size, chunk_sz, src_file, dst_file, src_ccount,
-                    dst_ccount, total_bytes_deduped, perfect_match, dry_run,
-                    src_dict, dst_dict, matched_keys, unmatched_keys):
     print "Summary"
-    print "blk_size : %d KB  chunksize : %d KB" % (blk_size, chunk_sz)
+    print "blk_size : %d KB  chunksize : %d KB" % (blk_size, chunk)
 
     if src_ccount == 0:
         print src_file + " has " + str(len(src_dict)) + " chunks"
@@ -274,25 +290,24 @@ def display_summary(blk_size, chunk_sz, src_file, dst_file, src_ccount,
     for k in unmatched_keys:
         unmatched_chunks += len(src_dict.get(k))
 
-    print "Matched chunks : " + str(matched_chunks)
+    print "Matched chunks: " + str(matched_chunks)
     print "Unmatched chunks: " + str(unmatched_chunks)
     if dry_run == 0:
         print "Total size (KB) deduped: " + str(total_bytes_deduped / 1024)
     else:
         print "Total size (KB) available for dedupe: %d " % (matched_chunks *
-                                                             chunk_sz)
+                                                             chunk)
     return perfect_match
 
 
 def validate_files(src_file, dst_file, processed_files):
-    global run_len, src_file_sz
+    global run_len
     if src_file in processed_files:
         return False
     if dst_file in processed_files:
         return False
     src_stat = os.stat(src_file)
     dst_stat = os.stat(dst_file)
-    src_file_sz = src_stat.st_size
     # Verify its a unique regular file
     if (S_ISREG(src_stat.st_mode) == S_ISREG(dst_stat.st_mode)
             and (src_stat.st_ino != dst_stat.st_ino)
