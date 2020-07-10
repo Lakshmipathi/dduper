@@ -39,6 +39,7 @@ ele_sz = 0
 fast_mode = False
 src_file_sz = 0
 verbose = 0
+show_summary = 0
 
 # Already deduped files
 processed_files = []
@@ -58,7 +59,7 @@ def get_ele_size(chunk_sz):
     no_of_chunks = chunk_sz / blk_size
     ele_sz = no_of_chunks / 8
     run_len = no_of_chunks * blk_size * 1024
-    print("\n chunk_sz=%d, no_of_chunks=%d, eke_sz=%d ",chunk_sz, no_of_chunks, ele_sz)
+    #print("\n chunk_sz=%d, no_of_chunks=%d, eke_sz=%d ",chunk_sz, no_of_chunks, ele_sz)
     return ele_sz
 
 
@@ -69,7 +70,7 @@ def get_hashes(out1):
     global ele_sz
     ccount = 0
 
-    print "Running with ele_sz " + str(ele_sz)
+    # print "Running with ele_sz " + str(ele_sz)
     if ele_sz == 1:
         od = OrderedDict()
         for idx, ele in enumerate(out1):
@@ -149,7 +150,7 @@ def do_dedupe(src_file, dst_file, dry_run):
         ## automatically change chunk size in case of prefect match.
         fz_kb = src_file_sz >> 10
         fz_mb = src_file_sz >> 20
-        print "File size is: " + str(fz_kb) + "KB or " + str(fz_mb) + "MB" 
+        # print "File size is: " + str(fz_kb) + "KB or " + str(fz_mb) + "MB" 
         if fz_mb > 100: #file > 100MB set chunk size 8MB 
             perfect_match_chunk_sz = 8192
             ele_sz = get_ele_size(1024 * 8)
@@ -223,12 +224,15 @@ def do_dedupe(src_file, dst_file, dry_run):
     # Close open fds
     os.close(src_fd)
     os.close(dst_fd)
-    if perfect_match == 1:
-        return show_summary(blk_size, perfect_match_chunk_sz, src_file, dst_file, src_ccount, dst_ccount, total_bytes_deduped, perfect_match, dry_run,src_dict, dst_dict, matched_keys, unmatched_keys)
-    else:
-        return show_summary(blk_size, chunk_sz, src_file, dst_file, src_ccount, dst_ccount, total_bytes_deduped, perfect_match, dry_run,src_dict, dst_dict, matched_keys, unmatched_keys)
+    if show_summary == 0:
+        return perfect_match
 
-def show_summary(blk_size, chunk_sz, src_file, dst_file, src_ccount, dst_ccount, total_bytes_deduped, perfect_match,dry_run,src_dict, dst_dict, matched_keys, unmatched_keys):
+    if perfect_match == 1:
+        return display_summary(blk_size, perfect_match_chunk_sz, src_file, dst_file, src_ccount, dst_ccount, total_bytes_deduped, perfect_match, dry_run,src_dict, dst_dict, matched_keys, unmatched_keys)
+    else:
+        return display_summary(blk_size, chunk_sz, src_file, dst_file, src_ccount, dst_ccount, total_bytes_deduped, perfect_match, dry_run,src_dict, dst_dict, matched_keys, unmatched_keys)
+
+def display_summary(blk_size, chunk_sz, src_file, dst_file, src_ccount, dst_ccount, total_bytes_deduped, perfect_match,dry_run,src_dict, dst_dict, matched_keys, unmatched_keys):
     print "Summary"
     print "blk_size : %d KB  chunksize : %d KB" % (blk_size, chunk_sz)
 
@@ -382,6 +386,9 @@ if __name__ == '__main__':
     parser.add_argument('-V', '--verbose', action='store_true', dest='verbose',
                 help='Show logs messages')
 
+    parser.add_argument('-S', '--show-summary', action='store_true', dest='show_summary',
+                help='Show summary of dedupe results')
+
     results = parser.parse_args()
 
     if not (results.dir_path or results.file_list):
@@ -393,5 +400,6 @@ if __name__ == '__main__':
     fast_mode = results.fast_mode
     ele_sz = get_ele_size(chunk_sz)
     verbose = results.verbose
+    show_summary = results.show_summary
 
     main(results)
