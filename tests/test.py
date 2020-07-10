@@ -1,8 +1,7 @@
-f1k = 1024
-f10k = 1024 * 10
 f1m = 1024 * 1024
 f10m = 1024 * 1024 * 10
 f100m = 1024 * 1024 * 100
+f512m = 1024 * 1024 * 512
 
 
 def file_layout(filename, layout, seg_size):
@@ -14,8 +13,8 @@ def file_layout(filename, layout, seg_size):
             fd.write(content)
 
 
-layout = ["abcd", "aaaa", "abac", "abcdabcd"]
-seg_size = [f1k, f10k, f1m, f10m]
+layout = ["abcd", "aaaa", "abac", "abcdabcd",'cdcdcd']
+seg_size = [f1m, f10m, f100m, f512m]
 print('*' * 100)
 print(
     "\t\t\t *** Files format: fn_<file_datalayout>_<segement_size>_<total_file_size> ***"
