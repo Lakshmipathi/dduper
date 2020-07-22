@@ -144,9 +144,12 @@ def validate_results(src_file, dst_file, bkup_file):
         # Removing temporary backup file path
         os.unlink(bkup_file)
     else:
-        print "WARNING: Dedupe for " + dst_file + " Resulted in corruption" + \
-              " Backup file path " + bkup_file
-
+        msg = "\nFAILURE: Deduplication for " + dst_file + " resulted in corruption." + \
+              "You can restore original file from " + bkup_file
+        print msg
+        with open("/var/log/dduper_backupfile_info.log", "a") as wfd:
+            wfd.write(msg)
+        # TODO: Remove this file from further op
 
 def auto_adjust_chunk_sz(src_file_sz):
     ## automatically change chunk size in case of prefect match.
@@ -182,7 +185,7 @@ def do_dedupe(src_file, dst_file, dry_run):
 
     src_file_sz = os.path.getsize(src_file)
 
-    bkup_file = dst_file + ".__superduper"
+    bkup_file = dst_file + ".__dduper"
     src_fd = os.open(src_file, os.O_RDONLY)
     dst_fd = os.open(dst_file, os.O_WRONLY)
     perfect_match = 0
