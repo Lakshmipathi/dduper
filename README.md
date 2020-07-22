@@ -5,25 +5,40 @@ dduper is a offline block-level dedupe tool for BTRFS. This works by fetching
 in-built csum from BTRFS csum-tree, Instead of reading whole file blocks and
 computing checksum. This hugely improves the performance.
 
-Dedupe Files:
--------------
+Dedupe Files (default mode):
+----------------------------
 
 To dedupe two files f1 and f2 on partition sda1:
 
 `dduper --device /dev/sda1 --files /mnt/f1 /mnt/f2`
 
-Dedupe Files Faster:
---------------------
-
 By default dduper uses `fideduperange` call and asks kernel to verify
-given regions are same or not then perform dedupe.
+given regions and perform dedupe whenever required.
 
-dduper has `--fast-mode` option, which tells kernel to skip verifying
-stage and invoke clone directly.
+Dedupe Files Faster (fast mode):
+--------------------------------
+dduper also has `--fast-mode` option, which tells kernel to skip verifying
+stage and invoke clone directly. This mode is faster since file contents
+are never read. dduper relies on file csum maintained by btrfs csum-tree.
 
-To dedupe two files f1 and f2 on partition sda1 in faster/unsafe mode:
+To dedupe two files f1 and f2 on partition sda1 in faster mode:
 
-`dduper --device /dev/sda1 --files /mnt/f1 /mnt/f2 --fast-mode`
+`dduper --fast-mode --device /dev/sda1 --files /mnt/f1 /mnt/f2`
+
+This works by fetching csums and invokes `ficlonerange` on matching regions.
+For this mode, dduper adds safety check by performing sha256 comparison.
+If validation fails, files can be restored using `/var/log/dduper_backupfile_info.log`.
+
+Dedupe Files blazing fast (insane mode):
+----------------------------------------
+
+If you already have backup data in another partition or systems. You can
+tell dduper to skip file sha256 validation after dedupe (file contents never read).
+This is insanly fast :-)
+
+`dduper --fast-mode --skip --device /dev/sda1 --files /mnt/f1 /mnt/f2`
+
+Caution: Don't run this, if you don't know what you are doing.
 
 Dedupe multiple files:
 ----------------------
@@ -139,9 +154,3 @@ To perform dry-run to display details without performing dedupe:
 
 Also check `--analyze` option for detailed data.
 
-Skip validation:
-----------------
-
-To skip file validation after dedupe (file contents never read):
-
-`dduper --device /dev/sda1 --files /mnt/f1 /mnt/f2 --skip `
