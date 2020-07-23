@@ -28,6 +28,11 @@ To dedupe two files f1 and f2 on partition sda1 in faster mode:
 This works by fetching csums and invokes `ficlonerange` on matching regions.
 For this mode, dduper adds safety check by performing sha256 comparison.
 If validation fails, files can be restored using `/var/log/dduper_backupfile_info.log`.
+This file will contain data like:
+`
+FAILURE: Deduplication for /mnt/foo resulted in corruption.You can restore original file from /mnt/foo.__dduper
+``
+
 
 Dedupe Files blazing fast (insane mode):
 ----------------------------------------
