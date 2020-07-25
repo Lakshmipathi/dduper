@@ -32,7 +32,7 @@ if __name__ == '__main__':
     print results.dir_path
     print('*' * 100)
     print(
-    "\t\t\t *** Files format: fn_<file_datalayout>_<segement_size>_<total_file_size> ***"
+    "\t\t\t *** Files format: fn_<file_datalayout>_<segment_size>_<total_file_size> ***"
     )
     print('*' * 100)
     for sz in seg_size:

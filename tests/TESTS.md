@@ -7,7 +7,7 @@ python test.py -d /mnt
 ```
 
 Above should create test data on /mnt. This will create files in specific layout format 
-`fn_<file_datalayout>_<segement_size>_<total_file_size>`. For example, "fn_abcd_1m_4m" 
+`fn_<file_datalayout>_<segment_size>_<total_file_size>`. For example, "fn_abcd_1m_4m" 
 refers to 4mb file with 1mb of a,b,c and d. i.e first 1mb is `a`, second 1mb is `b`, 
 third 1mb is `c` and fourth `1mb` is d.
 
