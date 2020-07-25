@@ -10,9 +10,9 @@ the patch from here https://patchwork.kernel.org/patch/10540229
 Steps should be similar to:
 
 1. git clone https://github.com/Lakshmipathi/dduper.git && cd dduper
-2. git clone https://github.com/kdave/btrfs-progs.git && btrfs-progs
+2. git clone https://github.com/kdave/btrfs-progs.git && cd btrfs-progs
 3. Apply the patch like `patch -p1 < ../patch/btrfs-progs-v5.6.1/0001-Print-csum-for-a-given-file-on-stdout.patch`
-4. Now compile and install brtfs-progs.
+4. Now compile and install btrfs-progs.
 5. After successful compilation, you should see following `dump-csum` option.
 
 ```
@@ -34,5 +34,5 @@ Misc:
 ----
 If you interested in dumping csum data, please check this demo: https://asciinema.org/a/34565
 
-Original mailing-list annoucement: https://www.mail-archive.com/linux-btrfs@vger.kernel.org/msg79853.html
+Original mailing-list announcement: https://www.mail-archive.com/linux-btrfs@vger.kernel.org/msg79853.html
 

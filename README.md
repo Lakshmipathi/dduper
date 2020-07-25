@@ -39,7 +39,7 @@ Dedupe Files blazing fast (insane mode):
 
 If you already have backup data in another partition or systems. You can
 tell dduper to skip file sha256 validation after dedupe (file contents never read).
-This is insanly fast :-)
+This is insanely fast :-)
 
 `dduper --fast-mode --skip --device /dev/sda1 --files /mnt/f1 /mnt/f2`
 
