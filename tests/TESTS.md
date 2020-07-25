@@ -15,10 +15,17 @@ Test run results:
 ----------------
 
 All three mode saved same amount of data. Original data:
+
+```
 /dev/xvdc      104857600 16626016  87204352  17% /mnt
+```
+
 
 After dedupe:
+
+```
 /dev/xvdc      104857600   26880 103787776   1% /mnt
+```
 
 
 1. Running in default mode:
@@ -44,5 +51,4 @@ dduper --fast-mode --skip --device /dev/xvdc --dir /mnt --chunk-size 1024 --recu
 
 dduper took 3.16962099075 seconds
 ```
-
 
