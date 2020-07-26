@@ -1,9 +1,9 @@
 dduper
 ------
 
-dduper is a offline block-level dedupe tool for BTRFS. This works by fetching
-in-built csum from BTRFS csum-tree, Instead of reading whole file blocks and
-computing checksum. This hugely improves the performance.
+dduper is a block-level offline (out-of-band) BTRFS dedupe tool. This works by
+fetching in-built checksum from BTRFS csum-tree, instead of reading file blocks
+and computing checksum. This *hugely* improves the performance.
 
 Dedupe Files (default mode):
 ----------------------------
@@ -29,10 +29,10 @@ This works by fetching csums and invokes `ficlonerange` on matching regions.
 For this mode, dduper adds safety check by performing sha256 comparison.
 If validation fails, files can be restored using `/var/log/dduper_backupfile_info.log`.
 This file will contain data like:
+
 `
 FAILURE: Deduplication for /mnt/foo resulted in corruption.You can restore original file from /mnt/foo.__dduper
-``
-
+`
 
 Dedupe Files blazing fast (insane mode):
 ----------------------------------------
@@ -43,7 +43,7 @@ This is insanely fast :-)
 
 `dduper --fast-mode --skip --device /dev/sda1 --files /mnt/f1 /mnt/f2`
 
-Caution: Don't run this, if you don't know what you are doing.
+*Caution: Don't run this, if you don't know what you are doing.*
 
 Dedupe multiple files:
 ----------------------

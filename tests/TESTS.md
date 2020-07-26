@@ -1,4 +1,4 @@
-This file documents how to use test.py used and performance numbers calculated.
+This file documents how to use test.py and how performance numbers calculated.
 
 ```
 mkfs.btrfs /dev/xvdc
