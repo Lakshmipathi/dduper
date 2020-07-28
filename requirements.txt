@@ -1,2 +1,2 @@
 numpy
-beautifultable
+beautifultable==0.8.0
