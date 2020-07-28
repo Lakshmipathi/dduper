@@ -276,6 +276,7 @@ def display_summary(blk_size, chunk_sz, perfect_match_chunk_sz, src_file,
     global dst_file_sz
     if perfect_match == 1:
         chunk = perfect_match_chunk_sz
+        total_bytes_deduped = dst_file_sz
     else:
         chunk = chunk_sz
 
