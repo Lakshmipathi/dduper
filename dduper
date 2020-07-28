@@ -52,7 +52,7 @@ processed_files = []
 
 # From https://stackoverflow.com/questions/434287
 def grouper(iterable, n, fillvalue=None):
-    args = [iter(iterable)] * n
+    args = [iter(iterable)] * int(n)
     return zip_longest(*args, fillvalue=fillvalue)
 
 
@@ -64,7 +64,7 @@ def get_ele_size(chunk_sz):
     no_of_chunks = chunk_sz / blk_size
     ele_sz = no_of_chunks / 8
     run_len = no_of_chunks * blk_size * 1024
-    #print("\n chunk_sz=%d, no_of_chunks=%d, eke_sz=%d ",chunk_sz, no_of_chunks, ele_sz)
+    # print("\n chunk_sz=%d, no_of_chunks=%d, eke_sz=%d ",chunk_sz, no_of_chunks, ele_sz)
     return ele_sz
 
 
@@ -151,15 +151,16 @@ def validate_results(src_file, dst_file, bkup_file):
             wfd.write(msg)
         # TODO: Remove this file from further op
 
+
 def auto_adjust_chunk_sz(src_file_sz):
-    ## automatically change chunk size in case of perfect match.
+    # automatically change chunk size in case of perfect match.
     fz_kb = src_file_sz >> 10
     fz_mb = src_file_sz >> 20
     # print("File size is: " + str(fz_kb) + "KB or " + str(fz_mb) + "MB")
-    if fz_mb > 100:  #file > 100MB set chunk size 8MB
+    if fz_mb > 100:  # file > 100MB set chunk size 8MB
         perfect_match_chunk_sz = 8192
         ele_sz = get_ele_size(1024 * 8)
-    elif fz_mb > 10:  #file > 10MB set chunk size 1MB
+    elif fz_mb > 10:  # file > 10MB set chunk size 1MB
         perfect_match_chunk_sz = 1024
         ele_sz = get_ele_size(1024)
     elif fz_kb > 512:  # file > 512KB chunk_size 128KB
@@ -175,7 +176,7 @@ def btrfs_dump_csum(filename):
     out = subprocess.Popen(
         ['btrfs', 'inspect-internal', 'dump-csum', filename, device_name],
         stdout=subprocess.PIPE,
-        close_fds=True).stdout.readlines()
+        close_fds=True, shell=True).stdout.readlines()
     return out
 
 
