@@ -1,6 +1,8 @@
 How to install dduper?
 ---------------------
 
+Install from Source:
+--------------------
 `dduper` relies on BTRFS checksums. To expose these checksums to userspace you need to apply additional patch on btrfs-progs first.
 This introduces a new command to dump csum using `btrfs inspect-internal dump-csum`.
 
@@ -29,6 +31,18 @@ Steps should be similar to:
 ```
 
 7. Type `dduper --help` to list options and continue with README.md for usage.
+
+Install using Docker :
+----------------------
+
+If you are already using docker and don't want to install via source. Then simply pull the `laks/dduper` image and
+pass your device and mount dir like:
+
+```
+$ docker run -it --device /dev/sda1 -v /btrfs_mnt:/mnt laks/dduper dduper --device /dev/sda1 --dir /mnt --analyze
+```
+
+Make sure to replace `/dev/sda1` with your btrfs device and `/btrfs_mnt` with btrfs mount point.
 
 Misc:
 ----
