@@ -156,6 +156,9 @@ def auto_adjust_chunk_sz(src_file_sz):
     # automatically change chunk size in case of perfect match.
     fz_kb = src_file_sz >> 10
     fz_mb = src_file_sz >> 20
+    print("*"*50)
+    print(fz_mb)
+    print("*" * 50)
     # print("File size is: " + str(fz_kb) + "KB or " + str(fz_mb) + "MB")
     if fz_mb > 100:  # file > 100MB set chunk size 8MB
         perfect_match_chunk_sz = 8192
@@ -166,6 +169,9 @@ def auto_adjust_chunk_sz(src_file_sz):
     elif fz_kb > 512:  # file > 512KB chunk_size 128KB
         perfect_match_chunk_sz = 128
         ele_sz = get_ele_size(128)
+    else:
+        perfect_match_chunk_sz = 32
+        ele_sz = get_ele_size(32)
 
     return perfect_match_chunk_sz, ele_sz
 
@@ -314,7 +320,6 @@ def display_summary(blk_size, chunk_sz, perfect_match_chunk_sz, src_file,
         # print "whole file deduped, remove this file from further op: " + str(dst_file)
         # override perfect match to remove this whole file.
         perfect_match = 1
-
 
     if analyze is True:
         if chunk_sz in analyze_dict:
@@ -528,8 +533,8 @@ if __name__ == '__main__':
             chunk_sz = sz
             ele_sz = get_ele_size(chunk_sz)
             main(results)
-            del processed_files[:] #clear list for next chunk_sz iteration
-        for k,v in analyze_dict.iteritems():
+            del processed_files[:] # clear list for next chunk_sz iteration
+        for k,v in analyze_dict.items():
             total_sz = 0
             table = BeautifulTable()
             table.column_headers = ["Chunk Size(KB)", "Files", "Duplicate(KB)"]
