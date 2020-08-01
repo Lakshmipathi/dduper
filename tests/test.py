@@ -8,6 +8,7 @@ mb = 1024 * 1024
 layout = ["abcd", "aaaa", "abac", "abcdabcd",'cdcdcd']
 seg_size = [f1m, f10m, f100m, f512m]
 
+
 def file_layout(filename, layout, seg_size):
     print("filename:%s layout:%s seg_size:%s file_size:%s" %
           (filename, layout, seg_size, len(layout) * seg_size))
@@ -16,6 +17,7 @@ def file_layout(filename, layout, seg_size):
         for c in layout:
             content = c * (seg_size * mb)
             fd.write(content)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -29,7 +31,7 @@ if __name__ == '__main__':
                         required=True)
 
     results = parser.parse_args()
-    print results.dir_path
+    print(results.dir_path)
     print('*' * 100)
     print(
     "\t\t\t *** Files format: fn_<file_datalayout>_<segment_size>_<total_file_size> ***"
