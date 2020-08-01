@@ -1,2 +1,2 @@
-numpy
+numpy==1.11.0
 beautifultable==0.8.0
