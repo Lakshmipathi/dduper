@@ -165,6 +165,10 @@ def auto_adjust_chunk_sz(src_file_sz):
     elif fz_kb > 512:  # file > 512KB chunk_size 128KB
         perfect_match_chunk_sz = 128
         ele_sz = get_ele_size(128)
+    else:
+        perfect_match_chunk_sz = 32
+        ele_sz = get_ele_size(32)
+
 
     return perfect_match_chunk_sz, ele_sz
 
