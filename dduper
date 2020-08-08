@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 # -*- coding: utf-8 -*-
 
 """ dduper - BTRFS Dedupe tool.
@@ -19,6 +19,7 @@ import pdb
 import struct
 import subprocess
 import sys
+import vennai
 
 from collections import OrderedDict
 from fcntl import ioctl
@@ -43,6 +44,7 @@ ele_sz = 0
 fast_mode = False
 verbose = False
 analyze = False
+visualize = False
 analyze_dict = OrderedDict()
 dst_file_sz = 0
 
@@ -194,7 +196,6 @@ def do_dedupe(src_file, dst_file, dry_run):
     dst_fd = os.open(dst_file, os.O_WRONLY)
     perfect_match = 0
     perfect_match_chunk_sz = 0
-
     out1 = btrfs_dump_csum(src_file)
     out2 = btrfs_dump_csum(dst_file)
 
@@ -269,20 +270,19 @@ def do_dedupe(src_file, dst_file, dry_run):
     return display_summary(blk_size, chunk_sz, perfect_match_chunk_sz,
                            src_file, dst_file, src_ccount, dst_ccount,
                            total_bytes_deduped, perfect_match, dry_run,
-                           src_dict, dst_dict, matched_keys, unmatched_keys)
+                           src_dict, dst_dict, matched_keys, unmatched_keys, src_file_sz)
 
 
 def display_summary(blk_size, chunk_sz, perfect_match_chunk_sz, src_file,
                     dst_file, src_ccount, dst_ccount, total_bytes_deduped,
                     perfect_match, dry_run, src_dict, dst_dict, matched_keys,
-                    unmatched_keys):
+                    unmatched_keys,src_file_sz):
     global dst_file_sz
     if perfect_match == 1:
         chunk = perfect_match_chunk_sz
         total_bytes_deduped = dst_file_sz
     else:
         chunk = chunk_sz
-
     # Compute matched and unmatched chunk info on dst_dict
     matched_chunks = 0
     for k in matched_keys:
@@ -327,6 +327,9 @@ def display_summary(blk_size, chunk_sz, perfect_match_chunk_sz, src_file,
         analyze_dict[chunk_sz] = v
         sys.stdout.write('[Analyzing] %s:%s                   \r'%(src_file,dst_file))
         sys.stdout.flush()
+
+    if visualize is True:
+        vennai.visualize(src_dict,dst_dict, src_file, dst_file, perfect_match, chunk_sz, avail_dedupe, unmatched_chunks, src_file_sz, dst_file_sz)
 
     return perfect_match
 
@@ -507,6 +510,12 @@ if __name__ == '__main__':
                         dest='analyze',
                         help='Report deduplicate data status with different chunk size')
 
+    parser.add_argument('-g',
+                        '--visualize',
+                        action='store_true',
+                        dest='visualize',
+                        help='Create visualize info')
+
 
     results = parser.parse_args()
 
@@ -519,14 +528,17 @@ if __name__ == '__main__':
     fast_mode = results.fast_mode
     ele_sz = get_ele_size(chunk_sz)
     verbose = results.verbose
+
     start = timer()   
     if fast_mode is False:
         skip = True
 
+    if results.visualize is True:
+        visualize = True
     if results.analyze is True:
         results.dry_run = True
         analyze = True
-        for sz in 256,512,1024,2048,4096,8192:
+        for sz in [64,128,256,512,1024]:
             chunk_sz = sz
             ele_sz = get_ele_size(chunk_sz)
             main(results)
@@ -534,7 +546,7 @@ if __name__ == '__main__':
         for k,v in analyze_dict.items():
             total_sz = 0
             table = PrettyTable()
-            table.field_names = ["Chunk Size(KB)", "Files", "Duplicate(KB)"]
+            table.field_names = ["Chunk Size(KB)", "Files(source:target)", "Duplicate(KB)"]
             for v1 in v:
                 table_row = []
                 table_row.append(k)
