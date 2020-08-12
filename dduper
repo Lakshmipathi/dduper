@@ -169,15 +169,18 @@ def auto_adjust_chunk_sz(src_file_sz):
     else:
         perfect_match_chunk_sz = 32
         ele_sz = get_ele_size(32)
-
     return perfect_match_chunk_sz, ele_sz
 
 
 def btrfs_dump_csum(filename):
     global device_name
 
+    btrfs_bin="/usr/sbin/btrfs.static"
+    if os.path.exists(btrfs_bin) is False:
+        btrfs_bin="btrfs"
+
     out = subprocess.Popen(
-        ['btrfs', 'inspect-internal', 'dump-csum', filename, device_name],
+        [btrfs_bin, 'inspect-internal', 'dump-csum', filename, device_name],
         stdout=subprocess.PIPE,
         close_fds=True).stdout.readlines()
     return out

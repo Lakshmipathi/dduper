@@ -1,6 +1,40 @@
 How to install dduper?
 ---------------------
 
+You can install dduper in 3 different ways.
+
+1. Using pre-built binary which requires couple of python packages.
+2. Using Docker image.
+3. Using Source code.
+
+All three approach is described below.
+
+Install pre-built binaries:
+---------------------------
+
+To Install `dduper` binaries, execute following commands:
+
+```
+        git clone https://github.com/Lakshmipathi/dduper.git && cd dduper
+        pip install -r requirements.txt
+        cp -v dduper /usr/sbin/ &&  cp -v bin/btrfs.static /usr/sbin/
+```
+
+That's all. Now type `dduper --help` to list options and continue with README.md for usage.
+
+Install using Docker :
+----------------------
+
+If you are already using docker and don't want to install any dependencies. Then simply pull the `laks/dduper` image and
+pass your device and mount dir like:
+
+```
+$ docker run -it --device /dev/sda1 -v /btrfs_mnt:/mnt laks/dduper dduper --device /dev/sda1 --dir /mnt --analyze
+```
+
+Make sure to replace `/dev/sda1` with your btrfs device and `/btrfs_mnt` with btrfs mount point.
+
+
 Install from Source:
 --------------------
 `dduper` relies on BTRFS checksums. To expose these checksums to userspace you need to apply additional patch on btrfs-progs first.
@@ -31,18 +65,6 @@ Steps should be similar to:
 ```
 
 7. Type `dduper --help` to list options and continue with README.md for usage.
-
-Install using Docker :
-----------------------
-
-If you are already using docker and don't want to install via source. Then simply pull the `laks/dduper` image and
-pass your device and mount dir like:
-
-```
-$ docker run -it --device /dev/sda1 -v /btrfs_mnt:/mnt laks/dduper dduper --device /dev/sda1 --dir /mnt --analyze
-```
-
-Make sure to replace `/dev/sda1` with your btrfs device and `/btrfs_mnt` with btrfs mount point.
 
 Misc:
 ----
