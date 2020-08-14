@@ -159,3 +159,10 @@ To perform dry-run to display details without performing dedupe:
 
 Also check `--analyze` option for detailed data.
 
+
+Reporting bugs:
+--------------
+
+To report issues please use
+
+- [github issue track](https://github.com/kdave/btrfs-progs/issues)
