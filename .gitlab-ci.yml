@@ -1,0 +1,13 @@
+# Setup GitLab-CI for GitHub 
+image: docker:18.09.7
+
+services:
+    - docker:18.09.7-dind
+
+stages:
+  - test
+
+basic test:
+  stage: test
+  script:
+     - echo "Hello from GitLab CI!"
