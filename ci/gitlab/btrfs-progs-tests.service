@@ -1,0 +1,13 @@
+[Unit]
+Description=Execute build_btrfsprogs_dduper.sh on console
+
+[Service]
+ExecStart=/usr/bin/build_btrfsprogs_dduper.sh
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/ttyS0
+Type=idle
+
+[Install]
+WantedBy=getty.target
+After=multi-user.target

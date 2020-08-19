@@ -1,13 +1,120 @@
-# Setup GitLab-CI for GitHub 
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public
+# License v2 as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public
+# License along with this program; if not, write to the
+# Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+# Boston, MA 021110-1307, USA.
+#
+
 image: docker:18.09.7
 
 services:
     - docker:18.09.7-dind
 
+# To enable Kernel Build, set  GitLab Environment variable named BUILD_KERNEL with value "yes"
+# If you disable Kernel Build, make sure Environment variable PREBUILT_KERNEL_ID points to previously built the kernel job id.
+# To enable image build, set Environment variable BUILD_IMAGE with value "yes"
+# If you disable Image Build, make sure Environment variable PREBUILT_IMAGE_ID points to previously built rootfs job id.
+# See https://gitlab.com/help/ci/variables/README#custom-environment-variables
+
+variables:
+  DOCKER_DRIVER: overlay2
+  IMAGE_TAG: registry.gitlab.com/$CI_PROJECT_NAMESPACE/dduper:gitlab-ci
+
 stages:
+  - setup
+  - pull
+  - build
   - test
 
-basic test:
+before_script:
+   - echo "BUILD KERNEL - $BUILD_KERNEL"
+   - echo "BUILD IMAGE - $BUILD_IMAGE"
+   - echo "PREBUILT_KERNEL_ID - $PREBUILT_KERNEL_ID"
+   - echo "PREBUILT_IMAGE_ID - $PREBUILT_IMAGE_ID"
+   - docker login --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+docker build:
+  stage: setup
+  script:
+    - cd ci/gitlab
+    - docker pull $IMAGE_TAG > /dev/null && echo "Downloaded image" || ( docker build -t $IMAGE_TAG . && docker push $IMAGE_TAG )
+
+kernel build:
+  before_script:
+    - apk add curl unzip 
+  stage: setup
+  script:
+     - if [ "$BUILD_KERNEL" == "yes" ]; then
+         docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/kernel_build.sh;
+       else
+         curl -o bzImage.zip --location --header "JOB-TOKEN:$CI_JOB_TOKEN"  "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/jobs/$PREBUILT_KERNEL_ID/artifacts" && unzip bzImage.zip;
+       fi;
+  artifacts:
+    when: always
+    paths:
+      - bzImage
+ 
+image build:
+  before_script:
+    - apk add curl unzip 
+  stage: setup
+  script:
+     - if [ "$BUILD_IMAGE" == "yes" ]; then
+          docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/setup_image.sh;
+       else
+          curl  -o qemu-image.img.zip --location --header "JOB-TOKEN:$CI_JOB_TOKEN" "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/jobs/$PREBUILT_IMAGE_ID/artifacts" && unzip qemu-image.img.zip;
+       fi;
+  artifacts:
+    when: always
+    paths:
+      - qemu-image.img
+
+Setup repos:
+  before_script:
+    - apk add curl unzip 
+  stage: pull
+  script:
+     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/setup_repos.sh
+  artifacts:
+    when: always
+    paths:
+      - qemu-image.img
+
+btrfs-progs build:
+  stage: build
+  script:
+     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - qemu-image.img
+
+crc2 sanity check:
   stage: test
   script:
-     - echo "Hello from GitLab CI!"
+     - echo "./ci/gitlab/basic_sanity_crc32.sh" > $PWD/cmd
+     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
+xxhash sanity check:
+  stage: test
+  script:
+     - echo "./ci/gitlab/basic_sanity_xxhash.sh" > $PWD/cmd
+     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
+blake2 sanity check:
+  stage: test
+  script:
+     - echo "./ci/gitlab/basic_sanity_blake2.sh" > $PWD/cmd
+     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
+sha256 sanity check:
+  stage: test
+  script:
+     - echo "./ci/gitlab/basic_sanity_sha256.sh" > $PWD/cmd
+     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
