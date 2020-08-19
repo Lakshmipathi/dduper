@@ -17,7 +17,8 @@ To Install `dduper` binaries, execute following commands:
 ```
         git clone https://github.com/Lakshmipathi/dduper.git && cd dduper
         pip3 install -r requirements.txt
-        cp -v dduper /usr/sbin/ &&  cp -v bin/btrfs.static /usr/sbin/
+        cp -v bin/btrfs.static /usr/sbin/     # this copies required btrfs binary.
+        cp -v dduper /usr/sbin/               # copy dduper script.
 ```
 
 That's all. Now type `dduper --help` to list options and continue with README.md for usage.
