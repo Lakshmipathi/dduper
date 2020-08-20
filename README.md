@@ -159,6 +159,13 @@ To perform dry-run to display details without performing dedupe:
 
 Also check `--analyze` option for detailed data.
 
+Known Issues:
+------------
+
+- dduper supports only crc32. Doesn't work with csum types like xxhash,blake2, sha256.
+  Please check [github issue track](https://github.com/lakshmipathi/dduper/issues) 
+
+- Please be aware that dduper is largely un-tesed tool. Validate it, before running it on critical data.
 
 Reporting bugs:
 --------------
