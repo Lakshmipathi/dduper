@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+
 """ dduper - BTRFS Dedupe tool.
 
 This is a offline dedupe tool. Instead of reading whole file blocks and
@@ -126,10 +127,12 @@ def cmp_files(file1, file2):
 
     md1 = subprocess.Popen(['sha256sum', file1],
                            stdout=subprocess.PIPE,
-                           close_fds=True, encoding='utf8').stdout.read().split(" ")[0]
+                           close_fds=True,
+                           encoding='utf8').stdout.read().split(" ")[0]
     md2 = subprocess.Popen(['sha256sum', file2],
                            stdout=subprocess.PIPE,
-                           close_fds=True, encoding='utf8').stdout.read().split(" ")[0]
+                           close_fds=True,
+                           encoding='utf8').stdout.read().split(" ")[0]
     if md1 == md2:
         return 0
     else:
@@ -175,9 +178,9 @@ def auto_adjust_chunk_sz(src_file_sz):
 def btrfs_dump_csum(filename):
     global device_name
 
-    btrfs_bin="/usr/sbin/btrfs.static"
+    btrfs_bin = "/usr/sbin/btrfs.static"
     if os.path.exists(btrfs_bin) is False:
-        btrfs_bin="btrfs"
+        btrfs_bin = "btrfs"
 
     out = subprocess.Popen(
         [btrfs_bin, 'inspect-internal', 'dump-csum', filename, device_name],
@@ -229,7 +232,7 @@ def do_dedupe(src_file, dst_file, dry_run):
                 bkup2 = subprocess.Popen(
                     ['cp', '--reflink=always', dst_file, bkup_file],
                     stdout=subprocess.PIPE)
-            print("*"*24)
+            print("*" * 24)
             # print "matched regions"
             for location in matched_keys:
                 entry = src_dict[location][0]
@@ -294,20 +297,21 @@ def display_summary(blk_size, chunk_sz, perfect_match_chunk_sz, src_file,
     for k in unmatched_keys:
         unmatched_chunks += len(dst_dict.get(k))
 
-
     if analyze is False:
-	    print("Summary")
-	    print("blk_size : %dKB  chunksize : %dKB" % (blk_size, chunk))
-	    if src_ccount == 0:
-		    print(src_file + " has " + str(len(src_dict)) + " chunks")
-	    else:
-		    print(src_file + " has " + str(len(src_dict) + src_ccount) + " chunks")
-	    if dst_ccount == 0:
-		    print(dst_file + " has " + str(len(dst_dict)) + " chunks")
-	    else:
-		    print(dst_file + " has " + str(len(dst_dict) + dst_ccount) + " chunks")
-	    print("Matched chunks: " + str(matched_chunks))
-	    print("Unmatched chunks: " + str(unmatched_chunks))
+        print("Summary")
+        print("blk_size : %dKB  chunksize : %dKB" % (blk_size, chunk))
+        if src_ccount == 0:
+            print(src_file + " has " + str(len(src_dict)) + " chunks")
+        else:
+            print(src_file + " has " + str(len(src_dict) + src_ccount) +
+                  " chunks")
+        if dst_ccount == 0:
+            print(dst_file + " has " + str(len(dst_dict)) + " chunks")
+        else:
+            print(dst_file + " has " + str(len(dst_dict) + dst_ccount) +
+                  " chunks")
+        print("Matched chunks: " + str(matched_chunks))
+        print("Unmatched chunks: " + str(unmatched_chunks))
 
     avail_dedupe = matched_chunks * chunk
 
@@ -323,12 +327,16 @@ def display_summary(blk_size, chunk_sz, perfect_match_chunk_sz, src_file,
 
     if analyze is True:
         if chunk_sz in analyze_dict:
-           v = analyze_dict[chunk_sz]
-        else: 
-           v = []
-        v.append((src_file+":"+dst_file,avail_dedupe,))
+            v = analyze_dict[chunk_sz]
+        else:
+            v = []
+        v.append((
+            src_file + ":" + dst_file,
+            avail_dedupe,
+        ))
         analyze_dict[chunk_sz] = v
-        sys.stdout.write('[Analyzing] %s:%s                   \r'%(src_file,dst_file))
+        sys.stdout.write('[Analyzing] %s:%s                   \r' %
+                         (src_file, dst_file))
         sys.stdout.flush()
 
     return perfect_match
@@ -349,8 +357,8 @@ def validate_files(src_file, dst_file, processed_files):
     if (S_ISREG(src_stat.st_mode) == S_ISREG(dst_stat.st_mode)
             and (src_stat.st_ino != dst_stat.st_ino)
             and (src_stat.st_size >= 4096) and (dst_stat.st_size >= 4096)):
-            # and (src_stat.st_size >= run_len)
-            # and (dst_stat.st_size >= run_len)):
+        # and (src_stat.st_size >= run_len)
+        # and (dst_stat.st_size >= run_len)):
         return True
     print("Skipped", src_file, dst_file, "not unique regular files or \
                file size < 4kb")
@@ -371,7 +379,7 @@ def dedupe_files(file_list, dry_run):
             src_file = f[0]
             dst_file = f[1]
             if validate_files(src_file, dst_file, processed_files) is True:
-		# print src_file + " <-Dedupe-> " + dst_file
+                # print src_file + " <-Dedupe-> " + dst_file
                 ret = do_dedupe(src_file, dst_file, dry_run)
                 # pdb.set_trace()
                 if ret == 1:
@@ -379,7 +387,8 @@ def dedupe_files(file_list, dry_run):
                     # print "removing " + str(dst_file)
                     processed_files.append(dst_file)
             #else:
-		#print src_file + " <-SKIP Dedupe-> " + dst_file + "chunk_size:" + str(chunk_sz)
+
+#print src_file + " <-SKIP Dedupe-> " + dst_file + "chunk_size:" + str(chunk_sz)
     else:
         print("Single file given or Empty directory. Try again with --recurse")
         return
@@ -392,7 +401,7 @@ def validate_file(filename):
     file_stat = os.stat(filename)
     # Verify its a unique regular file
     if (S_ISREG(file_stat.st_mode) and (file_stat.st_size >= 4096)):
-            # and (file_stat.st_size >= run_len)):
+        # and (file_stat.st_size >= run_len)):
         return True
     else:
         print("Skipped", filename, "not unique regular files or \
@@ -504,12 +513,12 @@ if __name__ == '__main__':
                         dest='verbose',
                         help='Show logs messages')
 
-    parser.add_argument('-a',
-                        '--analyze',
-                        action='store_true',
-                        dest='analyze',
-                        help='Report deduplicate data status with different chunk size')
-
+    parser.add_argument(
+        '-a',
+        '--analyze',
+        action='store_true',
+        dest='analyze',
+        help='Report deduplicate data status with different chunk size')
 
     results = parser.parse_args()
 
@@ -522,32 +531,34 @@ if __name__ == '__main__':
     fast_mode = results.fast_mode
     ele_sz = get_ele_size(chunk_sz)
     verbose = results.verbose
-    start = timer()   
+    start = timer()
     if fast_mode is False:
         skip = True
 
     if results.analyze is True:
         results.dry_run = True
         analyze = True
-        for sz in 256,512,1024,2048,4096,8192:
+        for sz in 256, 512, 1024, 2048, 4096, 8192:
             chunk_sz = sz
             ele_sz = get_ele_size(chunk_sz)
             main(results)
-            del processed_files[:] # clear list for next chunk_sz iteration
-        for k,v in analyze_dict.items():
+            del processed_files[:]  # clear list for next chunk_sz iteration
+        for k, v in analyze_dict.items():
             total_sz = 0
             table = PrettyTable()
             table.field_names = ["Chunk Size(KB)", "Files", "Duplicate(KB)"]
             for v1 in v:
                 table_row = []
                 table_row.append(k)
-                f,z = v1
+                f, z = v1
                 total_sz += z
                 table_row.append(str(f))
                 table_row.append(z)
                 table.add_row(table_row)
             print(table)
-            print("dduper:%sKB of duplicate data found with chunk size:%dKB \n\n" % (total_sz, k))
+            print(
+                "dduper:%sKB of duplicate data found with chunk size:%dKB \n\n"
+                % (total_sz, k))
     else:
         main(results)
-    print("dduper took " +str(timer() - start) +" seconds");
+    print("dduper took " + str(timer() - start) + " seconds")

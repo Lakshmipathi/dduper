@@ -101,20 +101,27 @@ btrfs-progs build:
 crc2 sanity check:
   stage: test
   script:
-     - echo "./ci/gitlab/basic_sanity_crc32.sh" > $PWD/cmd
+     - echo "./ci/gitlab/basic_sanity_csum.sh crc32" > $PWD/cmd
      - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
+     - test -e "crc32_pass.txt" || exit 1
+
 xxhash sanity check:
   stage: test
   script:
-     - echo "./ci/gitlab/basic_sanity_xxhash.sh" > $PWD/cmd
+     - echo "./ci/gitlab/basic_sanity_csum.sh xxhash" > $PWD/cmd
      - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
+     - test -e "xxhash_pass.txt" || exit 1
+
 blake2 sanity check:
   stage: test
   script:
-     - echo "./ci/gitlab/basic_sanity_blake2.sh" > $PWD/cmd
+     - echo "./ci/gitlab/basic_sanity_csum.sh blake2" > $PWD/cmd
      - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
+     - test -e "blake2_pass.txt" || exit 1
+
 sha256 sanity check:
   stage: test
   script:
-     - echo "./ci/gitlab/basic_sanity_sha256.sh" > $PWD/cmd
+     - echo "./ci/gitlab/basic_sanity_csum.sh sha256" > $PWD/cmd
      - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
+     - test -e "sha256_pass.txt" || exit 1
