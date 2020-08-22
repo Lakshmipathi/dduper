@@ -23,6 +23,8 @@ To Install `dduper` binaries, execute following commands:
 
 That's all. Now type `dduper --help` to list options and continue with README.md for usage.
 
+Note: If you want to perform basic check you can use this [script](https://github.com/Lakshmipathi/dduper/blob/master/tests/verify.sh)
+
 Install using Docker :
 ----------------------
 
