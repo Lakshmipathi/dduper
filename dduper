@@ -412,17 +412,19 @@ def validate_file(filename):
 def dedupe_dir(dir_path, dry_run, recurse):
     file_list = []
     if recurse is True:
-        for path, dirs, files in os.walk(dir_path):
-            for filename in files:
-                fn = os.path.join(path, filename)
-                if validate_file(fn) is True:
-                    file_list.append(fn)
+        for dirname in dir_path:
+            for path, dirs, files in os.walk(dirname):
+                for filename in files:
+                    fn = os.path.join(path, filename)
+                    if validate_file(fn) is True:
+                        file_list.append(fn)
     else:
-        for fi in os.listdir(dir_path):
-            if os.path.isfile(os.path.join(dir_path, fi)):
-                fn = os.path.join(dir_path, fi)
-                if validate_file(fn) is True:
-                    file_list.append(fn)
+        for dirname in dir_path:
+            for fi in os.listdir(dirname):
+                if os.path.isfile(os.path.join(dirname, fi)):
+                    fn = os.path.join(dirname, fi)
+                    if validate_file(fn) is True:
+                        file_list.append(fn)
     dedupe_files(file_list, dry_run)
 
 
@@ -454,8 +456,9 @@ if __name__ == '__main__':
                         '--dir',
                         action='store',
                         dest='dir_path',
+                        nargs='+',
                         type=str,
-                        help='Dedupe Given directory',
+                        help='Dedupe given directory or directories',
                         required=False)
 
     single.add_argument('-f',
@@ -463,7 +466,7 @@ if __name__ == '__main__':
                         action='store',
                         dest='file_list',
                         nargs='+',
-                        help='Dedupe List of files',
+                        help='Dedupe list of files',
                         type=str,
                         required=False)
 

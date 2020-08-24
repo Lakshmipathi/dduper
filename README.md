@@ -67,6 +67,12 @@ To dedupe entire directory also parse its sub-directories on sda1:
 
 `dduper --device /dev/sda1 --dir /mnt/dir --recurse `
 
+Dedupe multiple directories:
+---------------------------
+
+To dedupe multiple directories on sda1:
+
+`dduper --device /dev/sda1 --dir /mnt/dir1 /mnt/dir2`
 
 Analyze with different chunk size:
 ----------------------------------

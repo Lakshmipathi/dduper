@@ -3,6 +3,8 @@
 # Use debian image and setup repos.
 set -x
 
+ci_branch=$1
+
 apt-get update
 apt-get -y install python3-pip git
 
@@ -21,7 +23,7 @@ mount -o loop $IMG $DIR
 rm -rf $DIR/dduper
 rm -rf $DIR/btrfs-progs
 
-git clone https://github.com/Lakshmipathi/dduper.git $DIR/dduper
+git clone -b $ci_branch https://github.com/Lakshmipathi/dduper.git $DIR/dduper
 git clone https://github.com/kdave/btrfs-progs.git $DIR/btrfs-progs 
 
 pip3 install --target=$DIR/usr/lib/python3/dist-packages/ -r $DIR/dduper/requirements.txt
