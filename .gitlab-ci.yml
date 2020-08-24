@@ -82,7 +82,7 @@ Setup repos:
     - apk add curl unzip 
   stage: pull
   script:
-     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/setup_repos.sh
+     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/setup_repos.sh $CI_COMMIT_REF_NAME
   artifacts:
     when: always
     paths:
@@ -125,3 +125,17 @@ crc2 sanity check:
      - echo "./ci/gitlab/basic_sanity_csum.sh sha256" > $PWD/cmd
      - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
      - test -e "sha256_pass.txt" || exit 1
+
+dir test:
+  stage: test
+  script:
+     - echo "./ci/gitlab/basic_dir_test.sh dirtest" > $PWD/cmd
+     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
+     - test -e "dirtest_pass.txt" || exit 1
+
+dir-recurse test:
+  stage: test
+  script:
+     - echo "./ci/gitlab/basic_dir_recurse_test.sh dirr" > $PWD/cmd
+     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
+     - test -e "dirr_pass.txt" || exit 1
