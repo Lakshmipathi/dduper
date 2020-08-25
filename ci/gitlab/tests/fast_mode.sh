@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Verify --fast-mode option.
 #
-set -x
+set -xe
 
 test_type=$1
 

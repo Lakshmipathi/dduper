@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
+# Verify different csum types
 #
-#
-set -x
+set -xe
 
 csum_type=$1
 

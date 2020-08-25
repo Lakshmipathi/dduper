@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
+# Test directory recurse feature
 #
-#
-set -x
+set -xe
 
 test_type=$1
 
