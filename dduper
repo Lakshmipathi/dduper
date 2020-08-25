@@ -127,12 +127,12 @@ def cmp_files(file1, file2):
 
     md1 = subprocess.Popen(['sha256sum', file1],
                            stdout=subprocess.PIPE,
-                           close_fds=True,
-                           encoding='utf8').stdout.read().split(" ")[0]
+                           close_fds=True
+                           ).stdout.read().decode().split(" ")[0]
     md2 = subprocess.Popen(['sha256sum', file2],
                            stdout=subprocess.PIPE,
-                           close_fds=True,
-                           encoding='utf8').stdout.read().split(" ")[0]
+                           close_fds=True
+                           ).stdout.read().decode().split(" ")[0]
     if md1 == md2:
         return 0
     else:
