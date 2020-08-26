@@ -1,23 +1,26 @@
 #!/bin/bash
+set -x
 
 echo "This will create 512mb under /tmp and validates dduper behaviour."
-echo "\n Would like to continue?"
-echo "Enter 'ctrl+c' to abort, 'y' to continue:"
-read junk
 
 echo "-------setup image-----------------------"
 echo "creating 512mb btrfs img"
-IMG="/tmp/img"
-MNT_DIR="/tmp/btrfs_mnt"
+IMG="/img"
+MNT_DIR="/btrfs_mnt"
 
-losetup -f
+loop_dev=$(losetup -f)
+mknod -m640 $loop_dev b 7 0
+ls -l /dev/loop*
+
 mkdir -p $MNT_DIR
 truncate -s512m $IMG
 mkfs.btrfs -f $IMG
 
 echo "-------mount image-----------------------"
+losetup $loop_dev $IMG
+
 echo "mounting it under $MNT_DIR"
-mount $IMG $MNT_DIR
+mount  $loop_dev $MNT_DIR
 
 
 echo "-------setup files-----------------------"
@@ -27,7 +30,7 @@ dd if=/dev/urandom of=/tmp/f1 bs=1M count=50
 echo "Coping to mount point"
 cp -v /tmp/f1 $MNT_DIR/f1
 cp -v /tmp/f1 $MNT_DIR/f2
-loop_dev=$(/sbin/losetup --find --show $IMG)
+#loop_dev=$(/sbin/losetup --find --show $IMG)
 sync
 
 used_space2=$(df --output=used -h -m $MNT_DIR | tail -1 | tr -d ' ')

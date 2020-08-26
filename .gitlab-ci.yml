@@ -27,6 +27,7 @@ services:
 variables:
   DOCKER_DRIVER: overlay2
   IMAGE_TAG: registry.gitlab.com/$CI_PROJECT_NAMESPACE/dduper:gitlab-ci
+  DOCKER_IMG: laks/dduper
 
 stages:
   - setup
@@ -146,3 +147,9 @@ dir-recurse test:
      - echo "./ci/gitlab/tests/basic_dir_recurse_test.sh dirr" > $PWD/cmd
      - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
      - test -e "dirr_pass.txt" || exit 1
+
+docker-image test:
+  stage: test
+  script:
+     - docker run --cap-add MKNOD --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $DOCKER_IMG /repo/ci/gitlab/tests/docker_test.sh
+     - echo "TODO- Verify results"
