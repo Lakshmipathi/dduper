@@ -118,7 +118,9 @@ def ioctl_ficlonerange(dst_fd, s):
 def ioctl_fideduperange(src_fd, s):
 
     try:
-        ioctl(src_fd, FIDEDUPERANGE, s)
+        v = ioctl(src_fd, FIDEDUPERANGE, s)
+        _,_,_,_,_,_,_,bytes_dup,status,_ = struct.unpack("QQHHIqQQiH",v)
+        return bytes_dup,status
     except Exception as e:
         print("error({0})".format(e))
 
@@ -258,9 +260,9 @@ def do_dedupe(src_file, dst_file, dry_run):
                         s = struct.pack("QQHHIqQQiH", src_offset, src_len, 1,
                                         0, 0, dst_fd, dst_offset,
                                         bytes_deduped, status, 0)
-                        ioctl_fideduperange(src_fd, s)
+                        bytes_deduped,status = ioctl_fideduperange(src_fd, s)
                         total_bytes_deduped += bytes_deduped
-                        # print("\n bytes_deduped=%s",bytes_deduped)
+                        #print("\n bytes_deduped= %d %d " % (bytes_deduped, status))
 
             print("Dedupe completed for " + src_file + ":" + dst_file)
 
