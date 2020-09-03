@@ -16,6 +16,7 @@ rm -rf $PASS_FILE
 
 function setup_fs {
 	mkdir -p $MNT_DIR
+        rm -rf $IMG
 	truncate -s512m $IMG
 
 	if [ $csum_type == "crc32" ];
@@ -56,10 +57,10 @@ function start_dedupe {
 	used_space2=$(df --output=used -h -m $MNT_DIR | tail -1 | tr -d ' ')
 
 	echo "-------dduper verification-----------------------"
-	echo "Running simple dduper --dry-run"
+	echo "Running dduper --dry-run"
 	dduper --device ${loop_dev} --dir $MNT_DIR --dry-run
 
-	echo "Running simple dduper in default mode"
+	echo "Running dduper in default mode"
 	dduper --device ${loop_dev} --dir $MNT_DIR
 
 	sync
@@ -67,8 +68,8 @@ function start_dedupe {
 	used_space3=$(df --output=used -h -m $MNT_DIR | tail -1 | tr -d ' ')
 
 	echo "-------results summary-----------------------"
-	echo "disk usage before de-dupe: $used_space2 MB"
-	echo "disk usage after de-dupe: $used_space3 MB"
+	echo "Disk usage before de-dupe: $used_space2 MB"
+	echo "Disk usage after  de-dupe: $used_space3 MB"
 
 	deduped=$(expr $used_space2 - $used_space3)
         echo -n "$deduped" > /tmp/deduped
@@ -76,6 +77,7 @@ function start_dedupe {
 
 
 function verify_results {
+        echo "Verifying results"
         deduped=$(cat /tmp/deduped)
         f1=$1
         f2=$2
@@ -89,7 +91,7 @@ function verify_results {
 		echo "dduper verification failed"
                 echo "f1:$f1 f2:$f2 v:$v"
                 rm -rf $PASS_FILE
-                shutdown
+                abort_test
 	fi
 
 }
@@ -98,7 +100,9 @@ function cleanup {
 	umount $MNT_DIR
 }
 
-function shutdown {
+function abort_test {
+        echo "Abort further tests"
+        sleep 10
 	poweroff
 }
 
@@ -114,9 +118,10 @@ function test_dduper {
 }
 
 test_dduper "random" "random" "50" 
-test_dduper "fn_a_1" "fn_aaaa_1" "4"
-test_dduper "fn_a_1" "fn_aaaaaaaa_1" "8"
-test_dduper "fn_abacad_1" "fn_xbyczd_1" "3"
-test_dduper "fn_abcdef_1" "fn_xyzijkdef_1" "3"
+#test_dduper "fn_a_1" "fn_aaaa_1" "4"
+#test_dduper "fn_a_1" "fn_aaaaaaaa_1" "8"
+#test_dduper "fn_abacad_1" "fn_xbyczd_2" "6"
+test_dduper "fn_abcdef_1" "fn_xyzijkdef_2" "6"
 test_dduper "fn_abcdab_2" "fn_ijxyabc_6" "18"
+echo "All tests completed."
 shutdown
