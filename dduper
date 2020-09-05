@@ -162,13 +162,22 @@ def auto_adjust_chunk_sz(src_file_sz):
     fz_kb = src_file_sz >> 10
     fz_mb = src_file_sz >> 20
     # print("File size is: " + str(fz_kb) + "KB or " + str(fz_mb) + "MB")
-    if fz_mb > 100:  # file > 100MB set chunk size 8MB
+    if fz_mb >= 16:  # file >= 16MB set chunk size 16MB
+        perfect_match_chunk_sz = 16384
+        ele_sz = get_ele_size(1024 * 16)
+    elif fz_mb >= 8:  # file >= 8MB set chunk size 8MB
         perfect_match_chunk_sz = 8192
         ele_sz = get_ele_size(1024 * 8)
-    elif fz_mb > 10:  # file > 10MB set chunk size 1MB
+    elif fz_mb >= 4:  # file >= 4MB set chunk size 4MB
+        perfect_match_chunk_sz = 4096
+        ele_sz = get_ele_size(1024 * 4)
+    elif fz_mb >= 2:  # file >= 2MB set chunk size 2MB
+        perfect_match_chunk_sz = 2048
+        ele_sz = get_ele_size(1024 * 2)
+    elif fz_mb >= 1:  # file >= 1MB set chunk size 1MB
         perfect_match_chunk_sz = 1024
         ele_sz = get_ele_size(1024)
-    elif fz_kb > 512:  # file > 512KB chunk_size 128KB
+    elif fz_kb >= 512:  # file >= 512KB chunk_size 512KB
         perfect_match_chunk_sz = 512
         ele_sz = get_ele_size(512)
     else:
@@ -502,7 +511,7 @@ if __name__ == '__main__':
     parser.add_argument('-v',
                         '--version',
                         action='version',
-                        version='%(prog)s 0.02',
+                        version='%(prog)s 0.03',
                         help="Show version info")
 
     parser.add_argument('-m',
