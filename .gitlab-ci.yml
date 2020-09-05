@@ -46,7 +46,6 @@ before_script:
 docker build:
   stage: setup
   script:
-    - docker build -t $VERSION_IMAGE_TAG . && docker push $VERSION_IMAGE_TAG
     - cd ci/gitlab
     - docker pull $IMAGE_TAG > /dev/null && echo "Downloaded image" || ( docker build -t $IMAGE_TAG . && docker push $IMAGE_TAG )
 
@@ -98,7 +97,7 @@ Setup repos:
     - apk add curl unzip 
   stage: pull
   script:
-     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/setup_repos.sh $CI_COMMIT_REF_NAME
+     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/setup_repos.sh master
   artifacts:
     when: always
     paths:
@@ -169,5 +168,5 @@ dir-recurse test:
 docker-image test:
   stage: test
   script:
-     - docker run --cap-add MKNOD --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $VERSION_IMAGE_IMG /repo/ci/gitlab/tests/docker_test.sh
+     - docker run --cap-add MKNOD --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $VERSION_IMAGE_TAG /repo/ci/gitlab/tests/docker_test.sh
      - echo "TODO- Verify results"
