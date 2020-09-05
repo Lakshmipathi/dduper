@@ -59,8 +59,8 @@ def grouper(iterable, n, fillvalue=None):
 
 def get_ele_size(chunk_sz):
     global no_of_chunks, run_len
-    if chunk_sz <= 0 or chunk_sz % 32 != 0:
-        print("Ensure chunk size is of multiple 32KB. (32,64,128 etc)")
+    if chunk_sz <= 0 or chunk_sz % 128 != 0:
+        print("Ensure chunk size is of multiple 128KB. (128,256,512 etc)")
         sys.exit(-1)
     no_of_chunks = chunk_sz // blk_size
     ele_sz = no_of_chunks // 8
@@ -169,11 +169,11 @@ def auto_adjust_chunk_sz(src_file_sz):
         perfect_match_chunk_sz = 1024
         ele_sz = get_ele_size(1024)
     elif fz_kb > 512:  # file > 512KB chunk_size 128KB
+        perfect_match_chunk_sz = 512
+        ele_sz = get_ele_size(512)
+    else:
         perfect_match_chunk_sz = 128
         ele_sz = get_ele_size(128)
-    else:
-        perfect_match_chunk_sz = 32
-        ele_sz = get_ele_size(32)
     return perfect_match_chunk_sz, ele_sz
 
 
@@ -239,7 +239,7 @@ def do_dedupe(src_file, dst_file, dry_run):
             for location in matched_keys:
                 entry = src_dict[location][0]
                 src_len = no_of_chunks * blk_size * 1024
-                assert src_len < 16777216  # 16MB limit
+                assert src_len <= 16777216  # 16MB limit
                 src_offset = src_dict[location][0] * src_len
 
                 multi_dst_offsets = dst_dict[location]  # list
@@ -495,7 +495,7 @@ if __name__ == '__main__':
                         action='store',
                         dest='chunk_sz',
                         type=int,
-                        default=32,
+                        default=128,
                         help='Dedupe chunk size in KB',
                         required=False)
 
@@ -543,7 +543,7 @@ if __name__ == '__main__':
     if results.analyze is True:
         results.dry_run = True
         analyze = True
-        for sz in 256, 512, 1024, 2048, 4096, 8192:
+        for sz in 128, 256, 512, 1024, 2048, 4096, 8192, 16384:
             chunk_sz = sz
             ele_sz = get_ele_size(chunk_sz)
             main(results)
