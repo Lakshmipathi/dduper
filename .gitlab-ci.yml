@@ -55,11 +55,12 @@ docker publish:
   only:
     - dockerbuild
   script:
-    - echo "user - $D_USERNAME"
-    - echo "registry - $D_REGISTRY"
-    - docker login --username $D_USERNAME --password $D_PASSWORD $D_REGISTRY
+    - echo "Docker image  for hub"
     - docker build -t $VERSION_IMAGE_TAG . && docker push $VERSION_IMAGE_TAG
     - docker tag $VERSION_IMAGE_TAG $DOCKER_IMG
+    - docker logout
+    - docker images
+    - docker login --username $D_USERNAME --password $D_PASSWORD $D_REGISTRY
     - docker push $DOCKER_IMG
 
 kernel build:
