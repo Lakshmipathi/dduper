@@ -26,7 +26,8 @@ services:
 
 variables:
   DOCKER_DRIVER: overlay2
-  IMAGE_TAG: registry.gitlab.com/$CI_PROJECT_NAMESPACE/dduper:gitlab-ci
+  IMAGE_TAG: registry.gitlab.com/$CI_PROJECT_NAMESPACE/dduper:qemu
+  VERSION_IMAGE_TAG: registry.gitlab.com/$CI_PROJECT_NAMESPACE/dduper:V0.03
   DOCKER_IMG: laks/dduper
 
 stages:
@@ -44,7 +45,10 @@ before_script:
 
 docker build:
   stage: setup
+  #only:
+  #  - master
   script:
+    - docker build -t $VERSION_IMAGE_TAG . && docker push $VERSION_IMAGE_TAG
     - cd ci/gitlab
     - docker pull $IMAGE_TAG > /dev/null && echo "Downloaded image" || ( docker build -t $IMAGE_TAG . && docker push $IMAGE_TAG )
 
