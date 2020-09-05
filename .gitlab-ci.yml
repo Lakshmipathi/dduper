@@ -28,7 +28,7 @@ variables:
   DOCKER_DRIVER: overlay2
   IMAGE_TAG: registry.gitlab.com/$CI_PROJECT_NAMESPACE/dduper:qemu
   VERSION_IMAGE_TAG: registry.gitlab.com/$CI_PROJECT_NAMESPACE/dduper:V0.03
-  DOCKER_IMG: laks/dduper
+  DOCKER_IMG: laks/dduper:build
 
 stages:
   - setup
@@ -45,12 +45,22 @@ before_script:
 
 docker build:
   stage: setup
-  #only:
-  #  - master
   script:
     - docker build -t $VERSION_IMAGE_TAG . && docker push $VERSION_IMAGE_TAG
     - cd ci/gitlab
     - docker pull $IMAGE_TAG > /dev/null && echo "Downloaded image" || ( docker build -t $IMAGE_TAG . && docker push $IMAGE_TAG )
+
+docker publish:
+  stage: setup
+  only:
+    - dockerbuild
+  script:
+    - echo "user - $D_USER"
+    - echo "registry - $D_REGISTRY"
+    - docker login --username $D_USER --password $D_PASSWORD $D_REGISTRY
+    - docker build -t $VERSION_IMAGE_TAG . && docker push $VERSION_IMAGE_TAG
+    - docker tag $VERSION_IMAGE_TAG $DOCKER_IMG
+    - docker push $DOCKER_IMG
 
 kernel build:
   before_script:
@@ -158,5 +168,5 @@ dir-recurse test:
 docker-image test:
   stage: test
   script:
-     - docker run --cap-add MKNOD --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $DOCKER_IMG /repo/ci/gitlab/tests/docker_test.sh
+     - docker run --cap-add MKNOD --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $VERSION_IMAGE_IMG /repo/ci/gitlab/tests/docker_test.sh
      - echo "TODO- Verify results"
