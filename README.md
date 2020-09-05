@@ -151,7 +151,7 @@ or directory and its sub-directories using
 Changing dedupe chunk size:
 ---------------------------
 
-By default, dduper uses 32KB chunk size. This can be modified using chunk-size
+By default, dduper uses 128KB chunk size. This can be modified using chunk-size
 option. Below usage shows chunk size with 1MB
 
 `dduper --device /dev/sda1 --files /mnt/f1 /mnt/f2 --chunk-size 1024`
