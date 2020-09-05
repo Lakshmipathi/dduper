@@ -30,4 +30,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3-pip pyt
 WORKDIR /dduper
 RUN pip3 install -r requirements.txt && cp -v dduper /usr/sbin/
 RUN dduper --version
+
+# Remove packages
 RUN apt-get remove -y python3-pip python3-setuptools

@@ -55,9 +55,9 @@ docker publish:
   only:
     - dockerbuild
   script:
-    - echo "user - $D_USER"
+    - echo "user - $D_USERNAME"
     - echo "registry - $D_REGISTRY"
-    - docker login --username $D_USER --password $D_PASSWORD $D_REGISTRY
+    - docker login --username $D_USERNAME --password $D_PASSWORD $D_REGISTRY
     - docker build -t $VERSION_IMAGE_TAG . && docker push $VERSION_IMAGE_TAG
     - docker tag $VERSION_IMAGE_TAG $DOCKER_IMG
     - docker push $DOCKER_IMG
