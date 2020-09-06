@@ -26,7 +26,10 @@ COPY --from=build /dduper /dduper
 
 RUN cp -rv /btrfs-progs/usr/local/bin/* /usr/local/bin && cp -rv /btrfs-progs/usr/local/include/* /usr/local/include/ && cp -rv /btrfs-progs/usr/local/lib/* /usr/local/lib
 RUN btrfs inspect-internal dump-csum --help
-RUN apt-get update && apt-get install -y --no-install-recommends python-pip 
+RUN apt-get update && apt-get install -y --no-install-recommends python3-pip python3-setuptools
 WORKDIR /dduper
-RUN pip install -r requirements.txt && cp -v dduper /usr/sbin/
-RUN apt-get remove -y python-pip 
+RUN pip3 install -r requirements.txt && cp -v dduper /usr/sbin/
+RUN dduper --version
+
+# Remove packages
+RUN apt-get remove -y python3-pip python3-setuptools
