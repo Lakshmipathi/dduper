@@ -97,16 +97,18 @@ Setup repos:
     - apk add curl unzip 
   stage: pull
   script:
-     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/setup_repos.sh master
+     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/setup_repos.sh $CI_COMMIT_REF_NAME
   artifacts:
     when: always
     paths:
       - qemu-image.img
 
-btrfs-progs build:
+btrfs-progs-csum-patch build:
   stage: build
   script:
+     - echo "build_with_patch" > $PWD/cmd
      - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
+     - test -e "build_pass.txt" || exit 1
   artifacts:
     expire_in: 1 week
     when: always

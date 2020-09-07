@@ -24,6 +24,8 @@ rm -rf $DIR/dduper
 rm -rf $DIR/btrfs-progs
 
 git clone -b $ci_branch https://github.com/Lakshmipathi/dduper.git $DIR/dduper
+touch "$DIR/dduper/$ci_branch"
+ls -l "$DIR/dduper/"
 git clone https://github.com/kdave/btrfs-progs.git $DIR/btrfs-progs 
 
 pip3 install --target=$DIR/usr/lib/python3/dist-packages/ -r $DIR/dduper/requirements.txt
