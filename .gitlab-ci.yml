@@ -122,6 +122,19 @@ fast mode check:
      - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
      - test -e "fastmode_pass.txt" || exit 1
 
+dump-csum check:
+  stage: test
+  script:
+     - echo "./ci/gitlab/tests/basic_sanity_dumpcsum.sh xxhash" > $PWD/cmd
+     - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
+     - test -e "xxhash_pass.txt" || exit 1
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - random1
+      - random2
+
 crc2 sanity check:
   stage: test
   script:
