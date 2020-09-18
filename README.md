@@ -34,6 +34,8 @@ This file will contain data like:
 FAILURE: Deduplication for /mnt/foo resulted in corruption.You can restore original file from /mnt/foo.__dduper
 `
 
+*Caution: Don't run this, if you don't know what you are doing.*
+
 Dedupe Files blazing fast (insane mode):
 ----------------------------------------
 
@@ -43,7 +45,7 @@ This is insanely fast :-)
 
 `dduper --fast-mode --skip --device /dev/sda1 --files /mnt/f1 /mnt/f2`
 
-*Caution: Don't run this, if you don't know what you are doing.*
+*Caution: Never run this, if you don't know what you are doing.*
 
 Dedupe multiple files:
 ----------------------
