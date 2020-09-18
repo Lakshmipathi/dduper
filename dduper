@@ -528,7 +528,7 @@ if __name__ == '__main__':
     parser.add_argument('-v',
                         '--version',
                         action='version',
-                        version='%(prog)s 0.03',
+                        version='%(prog)s 0.04',
                         help="Show version info")
 
     parser.add_argument('-m',
