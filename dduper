@@ -386,7 +386,8 @@ def validate_files(src_file, dst_file, processed_files):
         # and (src_stat.st_size >= run_len)
         # and (dst_stat.st_size >= run_len)):
         return True
-    print("Skipped", src_file, dst_file, "not unique regular files or \
+    if verbose is True:
+        print("Skipped", src_file, dst_file, "not unique regular files or \
                file size < 4kb")
     return False
 
@@ -430,9 +431,10 @@ def validate_file(filename):
         # and (file_stat.st_size >= run_len)):
         return True
     else:
-        print("Skipped", filename, "not unique regular files or \
-            file size < 4kb ")
-    return False
+        if verbose is True:
+            print("Skipped", filename, "not unique regular files or \
+                file size < 4kb ")
+        return False
 
 
 def dedupe_dir(dir_path, dry_run, recurse):
