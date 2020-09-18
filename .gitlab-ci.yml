@@ -124,6 +124,7 @@ fast mode check:
 
 dump-csum check:
   stage: test
+  allow_failure: true
   script:
      - echo "./ci/gitlab/tests/basic_sanity_dumpcsum.sh xxhash" > $PWD/cmd
      - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
