@@ -1,0 +1,2 @@
+v0.04: 18-09-2020
+ - Added xxhash64, blake2, sha256 support

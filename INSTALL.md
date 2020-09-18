@@ -43,8 +43,7 @@ Install from Source:
 `dduper` relies on BTRFS checksums. To expose these checksums to userspace you need to apply additional patch on btrfs-progs first.
 This introduces a new command to dump csum using `btrfs inspect-internal dump-csum`.
 
-If you are using latest btrfs-progs you can get it from this repo `patch/btrfs-progs-v5.6.1/`. Optionally, you can also download 
-the patch from here https://patchwork.kernel.org/patch/10540229
+If you are using latest btrfs-progs you can get it from this repo `patch/btrfs-progs-v5.6.1/`.
 
 Steps should be similar to:
 
@@ -74,4 +73,4 @@ Misc:
 If you interested in dumping csum data, please check this demo: https://asciinema.org/a/34565
 
 Original mailing-list announcement: https://www.mail-archive.com/linux-btrfs@vger.kernel.org/msg79853.html
-
+Older patch: https://patchwork.kernel.org/patch/10540229
