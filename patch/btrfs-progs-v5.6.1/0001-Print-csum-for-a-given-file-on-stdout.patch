@@ -154,7 +154,7 @@ index 00000000..4d2e2131
 +			//possibly,some other csums on this item.
 +			for(i = 0; i < pending_csums; i++, cnt++){
 +			read_extent_buffer(leaf, &tree_csum,
-+					(unsigned long)item + ((i*4)+start_pos) , csum_size);
++					(unsigned long)item + ((i*csum_size)+start_pos) , csum_size);
 +			fprintf(stdout, "%x ", tree_csum);
 +			if (cnt % 8 == 0)
 +				fprintf(stdout, "\n");
@@ -164,7 +164,7 @@ index 00000000..4d2e2131
 +		}else{
 +			for(i = 0; i < csums_in_item; i++, cnt++){
 +			read_extent_buffer(leaf, &tree_csum,
-+					(unsigned long)item+((i*4)+start_pos), csum_size);
++					(unsigned long)item+((i*csum_size)+start_pos), csum_size);
 +			fprintf(stdout, "%x ", tree_csum);
 +			if (cnt % 8 == 0)
 +				fprintf(stdout, "\n");
@@ -212,7 +212,7 @@ index 00000000..4d2e2131
 +		fprintf(stderr, "Unable to find the entry");
 +		return ret;
 +	}
-+
++	u16 csum_size = btrfs_super_csum_size(info->csum_root->fs_info->super_copy);
 +	while(1){
 +		leaf = path->nodes[0];
 +		slot = path->slots[0];
@@ -231,7 +231,7 @@ index 00000000..4d2e2131
 +
 +		fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
 +		bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
-+		total_csums=(btrfs_file_extent_num_bytes(leaf, fi) / 1024) / 4;
++		total_csums=(btrfs_file_extent_num_bytes(leaf, fi) / 1024) / csum_size;
 +		path->slots[0]++;
 +		itemnum++;
 +		path1 = btrfs_alloc_path();
