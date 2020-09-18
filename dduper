@@ -220,6 +220,10 @@ def do_dedupe(src_file, dst_file, dry_run):
     out1 = btrfs_dump_csum(src_file)
     out2 = btrfs_dump_csum(dst_file)
 
+    # FIXME: check for empty csums
+    assert len(out1) != 0
+    assert len(out2) != 0
+
     # todo : perfect match files. Remove dst_file from further operations
     if out1 == out2:
         print("Perfect match : ", src_file, dst_file)
