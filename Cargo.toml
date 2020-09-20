@@ -1,0 +1,8 @@
+[package]
+name = "dduper"
+version = "0.0.4"
+authors = ["Lakshmipathi <lakshmipathi.ganapathi@collabora.com>"]
+edition = "2018"
+
+[dependencies]
+structopt = "0.2.15"
