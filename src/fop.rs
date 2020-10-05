@@ -2,7 +2,29 @@ use itertools::Itertools;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
-mod dduper;
+use std::process::Command;
+
+pub fn btrfs_dump_csum(filename: &PathBuf) {
+    let btrfs_bin = "/usr/sbin/btrfs.static";
+    let filename = "/mnt/f1";
+    let device_name = "/dev/loop10";
+    let dump_csum = vec!["inspect-internal", "dump-csum", filename, device_name];
+
+    let output = Command::new(btrfs_bin)
+        .args(&dump_csum)
+        .output()
+        .expect("failed to execute process");
+
+    println!("status: {}", output.status);
+    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+}
+
+pub fn do_dedupe(src_file: &PathBuf, dst_file: &PathBuf, dry_run: bool) -> bool {
+    btrfs_dump_csum(src_file);
+    btrfs_dump_csum(dst_file);
+
+    true
+}
 
 pub fn validate_file(filename: &PathBuf) -> Result<&PathBuf, io::Error> {
     let stat = fs::metadata(filename)?;
@@ -44,7 +66,7 @@ pub fn dedupe_files(files_list: Vec<PathBuf>, dry_run: bool) {
         match validate_files(f[0], f[1]) {
             Ok(_) => {
                 println!(" {:#?} {:#?} are valid files.", f[0], f[1]);
-                dduper::do_dedupe(f[0], f[1], dry_run);
+                do_dedupe(f[0], f[1], dry_run);
             }
             Err(error) => println!("Error: {}", error),
         };
