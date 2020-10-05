@@ -9,6 +9,6 @@ fn main() {
     if opts.files.len() > 0 {
         fop::dedupe_files(opts.files, opts.device, opts.dry_run);
     } else {
-        fop::dedupe_dir(opts.dir_path, opts.dry_run, opts.recurse);
+        fop::dedupe_dir(opts.dir_path, opts.device, opts.dry_run, opts.recurse);
     }
 }

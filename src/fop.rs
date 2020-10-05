@@ -4,7 +4,7 @@ use std::io;
 use std::path::PathBuf;
 use std::process::Command;
 
-pub fn btrfs_dump_csum(filename: &PathBuf, device_name: PathBuf) {
+pub fn btrfs_dump_csum(filename: &PathBuf, device_name: PathBuf) -> String {
     let btrfs_bin = "/usr/sbin/btrfs.static";
 
     let output = Command::new(btrfs_bin)
@@ -16,12 +16,15 @@ pub fn btrfs_dump_csum(filename: &PathBuf, device_name: PathBuf) {
         .expect("failed to execute process");
 
     println!("status: {}", output.status);
-    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+    //println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+    String::from_utf8_lossy(&output.stdout).to_string()
 }
 
 pub fn do_dedupe(src_file: &PathBuf, dst_file: &PathBuf, dry_run: bool, device: PathBuf) -> bool {
-    btrfs_dump_csum(src_file, device.clone());
-    btrfs_dump_csum(dst_file, device.clone());
+    let out1 = btrfs_dump_csum(src_file, device.clone());
+    println!("{}",out1);
+    let out2 = btrfs_dump_csum(dst_file, device.clone());
+    println!("{}",out2);
 
     true
 }
@@ -73,7 +76,7 @@ pub fn dedupe_files(files_list: Vec<PathBuf>, device: PathBuf, dry_run: bool) {
     }
 }
 
-pub fn dedupe_dir(dir_path: Vec<PathBuf>, dry_run: bool, recurse: bool) -> io::Result<()> {
+pub fn dedupe_dir(dir_path: Vec<PathBuf>, device: PathBuf, dry_run: bool, recurse: bool) -> io::Result<()> {
     let mut entries: Vec<PathBuf> = Vec::new();
     if dry_run {
         println!("dry run mode");
@@ -89,6 +92,6 @@ pub fn dedupe_dir(dir_path: Vec<PathBuf>, dry_run: bool, recurse: bool) -> io::R
     for f in &entries {
         println!("{:#?}", f);
     }
-    //    dedupe_files(entries, dry_run);
+    dedupe_files(entries, device.clone(),dry_run);
     Ok(())
 }
