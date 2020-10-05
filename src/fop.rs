@@ -4,14 +4,14 @@ use std::io;
 use std::path::PathBuf;
 use std::process::Command;
 
-pub fn btrfs_dump_csum(filename: &PathBuf) {
+pub fn btrfs_dump_csum(filename: &PathBuf, device_name: PathBuf) {
     let btrfs_bin = "/usr/sbin/btrfs.static";
-    let filename = "/mnt/f1";
-    let device_name = "/dev/loop10";
-    let dump_csum = vec!["inspect-internal", "dump-csum", filename, device_name];
 
     let output = Command::new(btrfs_bin)
-        .args(&dump_csum)
+        .arg("inspect-internal")
+        .arg("dump-csum")
+        .arg(filename)
+        .arg(&device_name)
         .output()
         .expect("failed to execute process");
 
@@ -19,9 +19,9 @@ pub fn btrfs_dump_csum(filename: &PathBuf) {
     println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
 }
 
-pub fn do_dedupe(src_file: &PathBuf, dst_file: &PathBuf, dry_run: bool) -> bool {
-    btrfs_dump_csum(src_file);
-    btrfs_dump_csum(dst_file);
+pub fn do_dedupe(src_file: &PathBuf, dst_file: &PathBuf, dry_run: bool, device: PathBuf) -> bool {
+    btrfs_dump_csum(src_file, device.clone());
+    btrfs_dump_csum(dst_file, device.clone());
 
     true
 }
@@ -49,7 +49,7 @@ pub fn validate_files(src_file: &PathBuf, dst_file: &PathBuf) -> Result<bool, io
     };
 }
 
-pub fn dedupe_files(files_list: Vec<PathBuf>, dry_run: bool) {
+pub fn dedupe_files(files_list: Vec<PathBuf>, device: PathBuf, dry_run: bool) {
     if dry_run {
         println!("dry run mode");
     }
@@ -66,7 +66,7 @@ pub fn dedupe_files(files_list: Vec<PathBuf>, dry_run: bool) {
         match validate_files(f[0], f[1]) {
             Ok(_) => {
                 println!(" {:#?} {:#?} are valid files.", f[0], f[1]);
-                do_dedupe(f[0], f[1], dry_run);
+                do_dedupe(f[0], f[1], dry_run, device.clone());
             }
             Err(error) => println!("Error: {}", error),
         };
@@ -89,6 +89,6 @@ pub fn dedupe_dir(dir_path: Vec<PathBuf>, dry_run: bool, recurse: bool) -> io::R
     for f in &entries {
         println!("{:#?}", f);
     }
-    dedupe_files(entries, dry_run);
+    //    dedupe_files(entries, dry_run);
     Ok(())
 }
