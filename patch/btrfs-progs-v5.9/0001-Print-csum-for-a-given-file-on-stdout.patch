@@ -1,0 +1,291 @@
+commit 334f30852f7592844461ee979c72bb3ddec2c4d4
+Author: Jesse Litton <github@eternaldusk.com>
+Date:   Wed Dec 23 12:53:53 2020 -0600
+
+    [PATCH] Print csum for a given file on stdout.
+
+diff --git a/Makefile b/Makefile
+index 381b630d..b46a019f 100644
+--- a/Makefile
++++ b/Makefile
+@@ -158,7 +158,8 @@ cmds_objects = cmds/subvolume.o cmds/filesystem.o cmds/device.o cmds/scrub.o \
+ 	       cmds/rescue-super-recover.o \
+ 	       cmds/property.o cmds/filesystem-usage.o cmds/inspect-dump-tree.o \
+ 	       cmds/inspect-dump-super.o cmds/inspect-tree-stats.o cmds/filesystem-du.o \
+-	       mkfs/common.o check/mode-common.o check/mode-lowmem.o
++	       mkfs/common.o check/mode-common.o check/mode-lowmem.o \
++	       cmds/inspect-dump-csum.o
+ libbtrfs_objects = common/send-stream.o common/send-utils.o kernel-lib/rbtree.o btrfs-list.o \
+ 		   kernel-lib/radix-tree.o common/extent-cache.o kernel-shared/extent_io.o \
+ 		   crypto/crc32c.o common/messages.o \
+diff --git a/cmds/commands.h b/cmds/commands.h
+index 8fa85d6c..350f456a 100644
+--- a/cmds/commands.h
++++ b/cmds/commands.h
+@@ -140,6 +140,7 @@ DECLARE_COMMAND(check);
+ DECLARE_COMMAND(chunk_recover);
+ DECLARE_COMMAND(super_recover);
+ DECLARE_COMMAND(inspect);
++DECLARE_COMMAND(inspect_dump_csum);
+ DECLARE_COMMAND(inspect_dump_super);
+ DECLARE_COMMAND(inspect_dump_tree);
+ DECLARE_COMMAND(inspect_tree_stats);
+diff --git a/cmds/inspect-dump-csum.c b/cmds/inspect-dump-csum.c
+new file mode 100644
+index 00000000..29477198
+--- /dev/null
++++ b/cmds/inspect-dump-csum.c
+@@ -0,0 +1,241 @@
++/*
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public
++ * License v2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public
++ * License along with this program; if not, write to the
++ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++ * Boston, MA 021110-1307, USA.
++ */
++
++#include "kerncompat.h"
++#include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++#include <fcntl.h>
++#include <sys/stat.h>
++#include <ctype.h>
++#include <uuid/uuid.h>
++#include <errno.h>
++#include <getopt.h>
++
++#include "kernel-shared/ctree.h"
++#include "kernel-shared/disk-io.h"
++#include "kernel-shared/print-tree.h"
++#include "kernel-shared/transaction.h"
++#include "kernel-lib/list.h"
++#include "common/utils.h"
++#include "cmds/commands.h"
++#include "crypto/crc32c.h"
++#include "common/help.h"
++#include "kernel-shared/volumes.h"
++
++
++const char * const cmd_inspect_dump_csum_usage[] = {
++	"btrfs inspect-internal dump-csum <path/to/file> <device>",
++	"Get csums for the given file.",
++	NULL
++};
++
++int btrfs_lookup_csums(struct btrfs_trans_handle *trans, struct btrfs_root *root,
++	struct btrfs_path *path, u64 bytenr, int cow, int total_csums)
++{
++	int ret;
++	int i;
++	int start_pos = 0;
++	struct btrfs_key file_key;
++	struct btrfs_key found_key;
++	struct btrfs_csum_item *item;
++	struct extent_buffer *leaf;
++	u64 csum_offset = 0;
++	u16 csum_size =
++		btrfs_super_csum_size(root->fs_info->super_copy);
++	int csums_in_item = 0;
++	unsigned int tree_csum = 0;
++	int pending_csums = total_csums;
++	static int cnt=1;
++
++	file_key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
++	file_key.offset = bytenr;
++	file_key.type = BTRFS_EXTENT_CSUM_KEY;
++	ret = btrfs_search_slot(trans, root, &file_key, path, 0, cow);
++	if (ret < 0)
++		goto fail;
++	while(1){
++		leaf = path->nodes[0];
++		if (ret > 0) {
++			ret = 1;
++			if (path->slots[0] == 0)
++				goto fail;
++			path->slots[0]--;
++			btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
++			if (found_key.type != BTRFS_EXTENT_CSUM_KEY){
++				fprintf(stderr, "\nInvalid key found.");
++				goto fail;
++			}
++
++			csum_offset = ((bytenr - found_key.offset) / root->fs_info->sectorsize) * csum_size;
++			csums_in_item = btrfs_item_size_nr(leaf, path->slots[0]);
++			csums_in_item /= csum_size;
++			csums_in_item -= ( bytenr - found_key.offset ) / root->fs_info->sectorsize;
++			start_pos=csum_offset;
++		}
++		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
++			if (pending_csums > 0){
++				ret = btrfs_next_leaf(root, path);
++				if (ret == 0)
++				      continue;
++			}
++		}
++		item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_csum_item);
++		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
++		if (!ret){
++			start_pos=0;
++			csum_offset = ( bytenr - found_key.offset ) / root->fs_info->sectorsize;
++			csums_in_item = btrfs_item_size_nr(leaf, path->slots[0]);
++			csums_in_item /= csum_size;
++		}
++		if (csums_in_item > pending_csums){
++			//possibly,some other csums on this item.
++			for(i = 0; i < pending_csums; i++, cnt++){
++			read_extent_buffer(leaf, &tree_csum,
++					(unsigned long)item + ((i*csum_size)+start_pos) , csum_size);
++			fprintf(stdout, "%x ", tree_csum);
++			if (cnt % 8 == 0)
++				fprintf(stdout, "\n");
++			}
++			pending_csums = 0;
++			return 0;
++		}else{
++			for(i = 0; i < csums_in_item; i++, cnt++){
++			read_extent_buffer(leaf, &tree_csum,
++					(unsigned long)item+((i*csum_size)+start_pos), csum_size);
++			fprintf(stdout, "%x ", tree_csum);
++			if (cnt % 8 == 0)
++				fprintf(stdout, "\n");
++			}
++		}
++		pending_csums -= csums_in_item;
++		ret = 0;
++		if (pending_csums > 0){
++			path->slots[0]++;
++
++		}else
++			return 0;
++	}
++fail:
++	fprintf(stderr, "btrfs_lookup_csums search failed.");
++	if (ret > 0)
++		ret = -ENOENT;
++	return ret;
++}
++
++int btrfs_lookup_extent(struct btrfs_fs_info *info, struct btrfs_path *path,
++		u64 ino, int cow){
++	struct btrfs_key key;
++	struct btrfs_key found_key;
++	struct btrfs_file_extent_item *fi;
++	struct extent_buffer *leaf;
++	struct btrfs_root *fs_root;
++	int ret = -1;
++	int slot;
++	int total_csums = 0;
++	u64 bytenr;
++	u64 itemnum = 0;
++	struct btrfs_path *path1 = NULL;
++
++	fs_root = info->fs_root;
++	key.objectid = ino;
++	key.type = BTRFS_EXTENT_DATA_KEY;
++	key.offset = 0;
++	ret = btrfs_search_slot(NULL,fs_root,&key,path,0,0);
++
++	if(ret < 0)
++		goto error;
++
++	if (ret > 1){
++		fprintf(stderr, "Unable to find the entry");
++		return ret;
++	}
++	u16 csum_size = btrfs_super_csum_size(info->csum_root->fs_info->super_copy);
++	while(1){
++		leaf = path->nodes[0];
++		slot = path->slots[0];
++		if (slot >=  btrfs_header_nritems(leaf)){
++		       ret = btrfs_next_leaf(fs_root, path);
++			       if (ret == 0)
++				      continue;
++			       if (ret < 0)
++				      goto error;
++		}
++		btrfs_item_key_to_cpu(leaf, &found_key, slot);
++		if (found_key.type != BTRFS_EXTENT_DATA_KEY){
++			btrfs_release_path(path);
++			return -EINVAL;
++		}
++
++		fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
++		bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
++		total_csums=(btrfs_file_extent_num_bytes(leaf, fi) / 1024) / csum_size;
++		path->slots[0]++;
++		itemnum++;
++		path1 = btrfs_alloc_path();
++		ret = btrfs_lookup_csums(NULL,info->csum_root, path1, bytenr, 0,
++					total_csums);
++		btrfs_release_path(path1);
++		if (ret) {
++			fprintf(stderr, "\n Error: btrfs_lookup_csum");
++			return 1;
++		}
++	}
++
++error:
++	btrfs_release_path(path);
++	return ret;
++}
++
++//int cmd_inspect_dump_csum(int argc, char **argv)
++static int cmd_inspect_dump_csum(const struct cmd_struct *cmd,
++				  int argc, char **argv)
++{
++	struct btrfs_fs_info *info;
++	int ret;
++	struct btrfs_path path;
++	struct stat st;
++	char *filename;
++
++	if (check_argc_exact(argc, 3))
++		usage_unknown_option(cmd, argv);
++
++	filename = argv[1];
++	info = open_ctree_fs_info(argv[2], 0, 0, 0, OPEN_CTREE_PARTIAL);
++	if (!info) {
++		fprintf(stderr, "unable to open %s\n", argv[2]);
++	        exit(1);
++	}
++
++	ret = stat(filename, &st);
++	if (ret < 0)	{
++		fprintf(stderr, "unable to open %s\n", filename);
++		exit(1);
++	}
++
++	if(st.st_size < 1024){
++		fprintf(stderr, "file less than 1KB.abort%lu", (st.st_size ));
++		exit(1);
++	}
++
++	btrfs_init_path(&path);
++	ret = btrfs_lookup_extent(info, &path, st.st_ino, 0);
++	ret = close_ctree(info->fs_root);
++	btrfs_close_all_devices();
++
++	return ret;
++}
++DEFINE_SIMPLE_COMMAND(inspect_dump_csum, "dump-csum");
+diff --git a/cmds/inspect.c b/cmds/inspect.c
+index 2530b904..f8f17a94 100644
+--- a/cmds/inspect.c
++++ b/cmds/inspect.c
+@@ -667,6 +667,7 @@ static const struct cmd_group inspect_cmd_group = {
+ 		&cmd_struct_inspect_dump_tree,
+ 		&cmd_struct_inspect_dump_super,
+ 		&cmd_struct_inspect_tree_stats,
++		&cmd_struct_inspect_dump_csum,
+ 		NULL
+ 	}
+ };
