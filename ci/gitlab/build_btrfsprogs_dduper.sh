@@ -19,7 +19,7 @@ then
 	cd $BUILD_DIR/
         ls -l /dduper $BUILD_DIR
         cat $BUILD_DIR/cmds/inspect-dump-csum.c
-	patch -p1 < /dduper/patch/btrfs-progs-v5.6.1/0001-Print-csum-for-a-given-file-on-stdout.patch
+	patch -p1 < /dduper/patch/btrfs-progs-v5.9/0001-Print-csum-for-a-given-file-on-stdout.patch
 	./autogen.sh && ./configure --disable-documentation --disable-backtrace && make -j`nproc` && make install && touch "${MNT_DIR}/build_pass.txt"
 	echo "=================  Install dduper =========================="
 	cp -v /dduper/dduper /usr/sbin/
