@@ -9,7 +9,7 @@ apt-get -y install build-essential libncurses-dev bison flex libssl-dev libelf-d
 # Build kernel
 wget https://github.com/kdave/btrfs-devel/archive/misc-next.zip
 unzip -qq  misc-next.zip
-cd btrfs-devel-misc-next/ && make x86_64_defconfig && make kvmconfig 
+cd btrfs-devel-misc-next/ && make x86_64_defconfig && make kvm_guest.config
 
 # BTRFS specific entires
 cat <<EOF >> .config
