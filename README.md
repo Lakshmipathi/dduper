@@ -2,8 +2,8 @@ dduper
 ------
 
 dduper is a block-level [out-of-band](https://btrfs.wiki.kernel.org/index.php/Deduplication#Out_of_band_.2F_batch_deduplication) BTRFS dedupe tool. This works by
-fetching in-built checksum from BTRFS csum-tree, instead of reading file blocks
-and computing checksum. This *hugely* improves the performance.
+fetching built-in checksum from BTRFS csum-tree, instead of reading file blocks
+and computing checksum itself. This *hugely* improves the performance.
 
 Dedupe Files (default mode):
 ----------------------------
@@ -12,11 +12,12 @@ To dedupe two files f1 and f2 on partition sda1:
 
 `dduper --device /dev/sda1 --files /mnt/f1 /mnt/f2`
 
-By default dduper uses `fideduperange` call and asks kernel to verify
-given regions and perform dedupe whenever required.
+This mode is 100% safe, as it uses the `fideduperange` call, which asks the kernel 
+to verify given regions byte-by-byte, and only perform dedupe when they match.
 
 Dedupe Files Faster (fast mode):
 --------------------------------
+
 dduper also has `--fast-mode` option, which tells kernel to skip verifying
 stage and invoke clone directly. This mode is faster since file contents
 are never read. dduper relies on file csum maintained by btrfs csum-tree.
@@ -84,7 +85,7 @@ You can analyze which chunk size provides better deduplication.
 
 It will perform analysis and report dedupe data for different chunk values.
 
-Sample output: f1 and f2 are 4mb files.
+Sample output: f1 and f2 are 4MB files.
 
 ```
 --------------------------------------------------
@@ -174,6 +175,8 @@ Known Issues:
   Now Initial support available for xxhash64, blake2 and sha256.
 
 - subvolume won't work with dduper.
+
+- Cannot yet de-duplicate identical content blocks within a single file
 
 - Please be aware that dduper is largely un-tesed tool. Validate it, before running it on critical data.
 
