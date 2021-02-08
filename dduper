@@ -46,6 +46,7 @@ verbose = False
 analyze = False
 analyze_dict = OrderedDict()
 dst_file_sz = 0
+perfect_match_only = False
 
 # Already deduped files
 processed_files = []
@@ -228,6 +229,8 @@ def do_dedupe(src_file, dst_file, dry_run):
     if out1 == out2:
         print("Perfect match : ", src_file, dst_file)
         perfect_match = 1
+        if perfect_match_only is True:
+            return perfect_match
         perfect_match_chunk_sz, ele_sz = auto_adjust_chunk_sz(src_file_sz, analyze)
         # Get hashes now
         src_dict, src_ccount = get_hashes(out1)
@@ -544,6 +547,12 @@ if __name__ == '__main__':
                         dest='verbose',
                         help='Show logs messages')
 
+    parser.add_argument('-P',
+                        '--perfect_match_only',
+                        action='store_true',
+                        dest='perfect_match_only',
+                        help='find perfect match files')
+
     parser.add_argument(
         '-a',
         '--analyze',
@@ -562,9 +571,12 @@ if __name__ == '__main__':
     fast_mode = results.fast_mode
     ele_sz = get_ele_size(chunk_sz)
     verbose = results.verbose
+    perfect_match_only = results.perfect_match_only
     start = timer()
     if fast_mode is False:
         skip = True
+    if perfect_match_only is True:
+        print("Find duplicate files...")
 
     if results.analyze is True:
         results.dry_run = True
