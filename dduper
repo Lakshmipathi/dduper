@@ -27,6 +27,7 @@ from itertools import combinations
 from itertools import zip_longest
 from stat import *
 from timeit import default_timer as timer
+from filecmp import cmp
 from prettytable import PrettyTable
 
 #  4kb block size
@@ -125,26 +126,9 @@ def ioctl_fideduperange(src_fd, s):
         print("error({0})".format(e))
 
 
-def cmp_files(file1, file2):
-
-    md1 = subprocess.Popen(['sha256sum', file1],
-                           stdout=subprocess.PIPE,
-                           close_fds=True
-                           ).stdout.read().decode().split(" ")[0]
-    md2 = subprocess.Popen(['sha256sum', file2],
-                           stdout=subprocess.PIPE,
-                           close_fds=True
-                           ).stdout.read().decode().split(" ")[0]
-    if md1 == md2:
-        return 0
-    else:
-        return 1
-
-
 def validate_results(src_file, dst_file, bkup_file):
 
-    ret = cmp_files(dst_file, bkup_file)
-    if ret == 0:
+    if cmp(dst_file, bkup_file):
         print("Dedupe validation successful " + src_file + ":" + dst_file)
         # Removing temporary backup file path
         os.unlink(bkup_file)
