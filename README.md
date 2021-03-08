@@ -168,6 +168,14 @@ To perform dry-run to display details without performing dedupe:
 
 Also check `--analyze` option for detailed data.
 
+List duplicate files:
+---------------------
+
+To list duplicate files from a directory:
+
+`dduper --device /dev/sda1 --dir /mnt --recurse --perfect-match-only`
+
+
 Known Issues:
 ------------
 

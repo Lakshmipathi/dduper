@@ -532,7 +532,7 @@ if __name__ == '__main__':
                         help='Show logs messages')
 
     parser.add_argument('-P',
-                        '--perfect_match_only',
+                        '--perfect-match-only',
                         action='store_true',
                         dest='perfect_match_only',
                         help='find perfect match files')
