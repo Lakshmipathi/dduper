@@ -13,10 +13,12 @@ This hugely improves the performance.
 import argparse
 import errno
 import hashlib
+import logging
 import numpy as np
 import math
 import os
 import pdb
+import sqlite3
 import struct
 import subprocess
 import sys
@@ -52,6 +54,60 @@ perfect_match_only = False
 # Already deduped files
 processed_files = []
 
+connection = None
+cursor = None
+
+# Log file
+LOG_FILENAME = 'dduper.log'
+logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG,)
+
+# Sqlite DB operations
+def sqlite_mark_processed(filename):
+    global cursor
+    cursor.execute("update filehash set processed=1 WHERE filename = ?",(filename,))
+    sqlite_commit()
+
+def sqlite_mark_valid(filename):
+    global cursor
+    cursor.execute("update filehash set valid=1 WHERE filename = ?",(filename,))
+    sqlite_commit()
+
+def sqlite_insert_csum(filename, complete_hash, out):
+    global connection, cursor
+    cursor.execute("INSERT INTO filehash VALUES (?, ?, 0, 0)",  (filename, complete_hash))
+    cursor.execute("SELECT * FROM btrfscsum WHERE short_hash = ?",(complete_hash,))
+    exist = cursor.fetchone()
+
+    if exist is None:
+          cursor.execute("INSERT INTO btrfscsum VALUES (?, ?)",  (complete_hash, str(out)))
+
+    sqlite_commit()
+
+def sqlite_create_tables():
+    global cursor
+    cursor.execute("CREATE TABLE filehash (filename TEXT, short_hash  TEXT, processed INTEGER, valid INTEGER)")
+    cursor.execute("CREATE TABLE btrfscsum (short_hash  TEXT, long_hash TEXT)")
+
+def sqlite_commit():
+    global connection
+    connection.commit()
+
+def sqlite_connection_close():
+    global connection
+    connection.close()
+
+def sqlite_connection_open():
+    global connection, cursor
+
+    if os.path.exists("dduper.db") is True:
+         connection = sqlite3.connect("dduper.db")
+         cursor = connection.cursor()
+    else:
+         connection = sqlite3.connect("dduper.db")
+         cursor = connection.cursor()
+         sqlite_create_tables()
+
+# Sqlite DB 
 
 # From https://stackoverflow.com/questions/434287
 def grouper(iterable, n, fillvalue=None):
@@ -176,8 +232,7 @@ def auto_adjust_chunk_sz(src_file_sz, analyze):
     return perfect_match_chunk_sz, ele_sz
 
 
-def btrfs_dump_csum(filename):
-    global device_name
+def do_btrfs_dump_csum(filename):
 
     btrfs_bin = "/usr/sbin/btrfs.static"
     if os.path.exists(btrfs_bin) is False:
@@ -187,7 +242,36 @@ def btrfs_dump_csum(filename):
         [btrfs_bin, 'inspect-internal', 'dump-csum', filename, device_name],
         stdout=subprocess.PIPE,
         close_fds=True).stdout.readlines()
+
+    complete_hash = hashlib.sha256(str(out).encode('utf-8')).hexdigest()
+    sqlite_insert_csum(filename, complete_hash, out)
     return out
+
+def check_btrfs_file_exists(filename):
+    global cursor
+    cursor.execute("SELECT * FROM filehash WHERE filename = ?",(filename,))
+    exist = cursor.fetchone()
+    if exist is None:
+          return None, False
+    else:
+          # print("Already exists - return the out value")
+          cursor.execute("SELECT * FROM btrfscsum WHERE short_hash = ?",(exist[1],))
+          exist = cursor.fetchone()
+          if exist is None:
+              print("Not btrfscsum found")
+              return None, False
+          else:
+              out = eval(exist[1])
+              return out, True
+
+def btrfs_dump_csum(filename):
+    global device_name
+    out, ret = check_btrfs_file_exists(filename)
+
+    if ret == True:
+        return out
+    else:
+        return do_btrfs_dump_csum(filename)
 
 
 def do_dedupe(src_file, dst_file, dry_run):
@@ -270,6 +354,7 @@ def do_dedupe(src_file, dst_file, dry_run):
                         #print("\n bytes_deduped= %d %d " % (bytes_deduped, status))
 
             print("Dedupe completed for " + src_file + ":" + dst_file)
+            sqlite_mark_processed(dst_file)
 
             # Verify original unmodified file and newly deduped file both point to same contents
             if skip is False:
@@ -401,8 +486,7 @@ def dedupe_files(file_list, dry_run):
                     # print "removing " + str(dst_file)
                     processed_files.append(dst_file)
             #else:
-
-#print src_file + " <-SKIP Dedupe-> " + dst_file + "chunk_size:" + str(chunk_sz)
+               #print src_file + " <-SKIP Dedupe-> " + dst_file + "chunk_size:" + str(chunk_sz)
     else:
         print("Single file given or Empty directory. Try again with --recurse")
         return
@@ -423,8 +507,50 @@ def validate_file(filename):
                 file size < 4kb ")
         return False
 
+def fetch_valid_unprocessed_files():
+    global cursor
+    dupfiles=[]
+    cursor.execute("select filename from filehash where valid=1 and processed=0;")
+    exist = cursor.fetchall()
+    if exist is None:
+          print("No records matching valid=1 and processed=0")
+          logging.debug("No records matching valid=1 and processed=0")
+          return None
+    else:
+          return exist
+
+def detect_dupfiles():
+    global cursor
+    dupfiles=[]
+    cursor.execute("select short_hash from filehash group by short_hash having count(*) > 1;")
+    exist = cursor.fetchall()
+    if exist is None:
+          #print("No duplicate files found")
+          logging.debug("No duplicate files found")
+          return None
+    else:
+          logging.debug("Duplicate files are:")
+          for short_hash in exist:
+                files=[]
+                cursor.execute("SELECT filename FROM filehash WHERE short_hash = ?",(short_hash[0],))
+                filelist = cursor.fetchall()
+                if filelist is not None:
+                    for f in filelist:
+                        #print(f[0])
+                        files.append(f[0])
+                dupfiles.append(files)
+
+    logging.debug(dupfiles)
+    return dupfiles
+
+
+def populate_records(file_list):
+    for fn in file_list:
+        btrfs_dump_csum(fn)
+        sqlite_mark_valid(fn)
 
 def dedupe_dir(dir_path, dry_run, recurse):
+    logging.debug("Phase-1: Validating files and creating DB")
     file_list = []
     if recurse is True:
         for dirname in dir_path:
@@ -440,10 +566,27 @@ def dedupe_dir(dir_path, dry_run, recurse):
                     fn = os.path.join(dirname, fi)
                     if validate_file(fn) is True:
                         file_list.append(fn)
-    dedupe_files(file_list, dry_run)
+
+    logging.debug("Phase-1.1: Populate records using threads")
+    populate_records(file_list)
+
+    logging.debug("Phase-2: Detecting duplicate files")
+    dupfiles = detect_dupfiles()
+    logging.debug("Phase-3: Dedupe duplicate files")
+    for f in dupfiles:
+        logging.debug(f)
+        dedupe_files(f, dry_run)
+    
+    remaining_items = fetch_valid_unprocessed_files()
+    newfile_list = [filename for t in remaining_items for filename in t]
+    logging.debug("Phase-4: Dedupe remaining files")
+    logging.debug(newfile_list)
+    dedupe_files(newfile_list, dry_run)
 
 
 def main(results):
+
+    sqlite_connection_open()
 
     if results.file_list is not None:
         dedupe_files(results.file_list, results.dry_run)
@@ -451,6 +594,7 @@ def main(results):
     if results.dir_path is not None:
         dedupe_dir(results.dir_path, results.dry_run, results.recurse)
 
+    sqlite_connection_close()
     return
 
 

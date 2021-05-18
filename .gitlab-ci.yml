@@ -42,6 +42,7 @@ before_script:
    - echo "PREBUILT_KERNEL_ID - $PREBUILT_KERNEL_ID"
    - echo "PREBUILT_IMAGE_ID - $PREBUILT_IMAGE_ID"
    - docker login --username $CI_REGISTRY_USER --password $CI_REGISTRY_PASSWORD $CI_REGISTRY
+   # - rm -rf ci/gitlab/tests/dduper.log ci/gitlab/tests/dduper.db
 
 docker build:
   stage: setup
@@ -139,6 +140,7 @@ dump-csum check:
 crc2 sanity check:
   stage: test
   script:
+     - ls -lR
      - echo "./ci/gitlab/tests/basic_sanity_csum.sh crc32" > $PWD/cmd
      - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
      - test -e "crc32_pass.txt" || exit 1
@@ -147,6 +149,7 @@ xxhash sanity check:
   stage: test
   allow_failure: true
   script:
+     - ls -lR
      - echo "./ci/gitlab/tests/basic_sanity_csum.sh xxhash" > $PWD/cmd
      - docker run --cap-add SYS_PTRACE --cap-add sys_admin --privileged --device=/dev/kvm -v $PWD:/repo $IMAGE_TAG /repo/ci/gitlab/run_tests.sh
      - test -e "xxhash_pass.txt" || exit 1
