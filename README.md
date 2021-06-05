@@ -1,6 +1,10 @@
 dduper 
 ------
 
+---
+Please be aware that dduper is largely un-tesed tool. Validate it, before running it on critical data.
+---
+
 dduper is a block-level [out-of-band](https://btrfs.wiki.kernel.org/index.php/Deduplication#Out_of_band_.2F_batch_deduplication) BTRFS dedupe tool. This works by
 fetching built-in checksum from BTRFS csum-tree, instead of reading file blocks
 and computing checksum itself. This *hugely* improves the performance.
