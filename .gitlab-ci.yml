@@ -13,10 +13,12 @@
 # Boston, MA 021110-1307, USA.
 #
 
-image: docker:18.09.7
+image: docker:20-dind
 
 services:
-    - docker:18.09.7-dind
+    - name: docker:20-dind
+      alias: docker
+      command: ["--tls=false"]
 
 # To enable Kernel Build, set  GitLab Environment variable named BUILD_KERNEL with value "yes"
 # If you disable Kernel Build, make sure Environment variable PREBUILT_KERNEL_ID points to previously built the kernel job id.
@@ -26,6 +28,8 @@ services:
 
 variables:
   DOCKER_DRIVER: overlay2
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_TLS_CERTDIR: ""
   IMAGE_TAG: registry.gitlab.com/$CI_PROJECT_NAMESPACE/dduper:qemu
   VERSION_IMAGE_TAG: registry.gitlab.com/$CI_PROJECT_NAMESPACE/dduper:V0.03
   DOCKER_IMG: laks/dduper:build
