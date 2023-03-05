@@ -20,7 +20,7 @@ done
 mount -o loop $IMG $DIR
 
 # Install required pacakges
-debootstrap --arch=amd64  --include=git,autoconf,automake,gcc,make,pkg-config,e2fslibs-dev,libblkid-dev,zlib1g-dev,liblzo2-dev,asciidoc,xmlto,libzstd-dev,python3.5,python3.5-dev,python3-dev,python3-setuptools,python-setuptools,xz-utils,acl,attr,python3-pip,patch,mount,libmount-dev stretch $DIR http://ftp.de.debian.org/debian/
+debootstrap --arch=amd64  --include=git,autoconf,automake,gcc,make,pkg-config,e2fslibs-dev,libblkid-dev,zlib1g-dev,liblzo2-dev,asciidoc,xmlto,libzstd-dev,python3.5,python3.5-dev,python3-dev,python3-setuptools,python-setuptools,xz-utils,acl,attr,python3-pip,patch,mount,libmount-dev bullseye $DIR http://ftp.de.debian.org/debian/
 
 ## Setup 9p mount
 echo "btrfs-progs /mnt           9p             trans=virtio    0       0" > $DIR/etc/fstab
