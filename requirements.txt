@@ -1,3 +1,2 @@
 numpy
 PTable
-pysqlite3-binary
