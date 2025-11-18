@@ -5,5 +5,10 @@ authors = ["Lakshmipathi <lakshmipathi.ganapathi@collabora.com>"]
 edition = "2018"
 
 [dependencies]
-structopt = "0.2.15"
-itertools = "0.9.0"
+structopt = "0.3"
+itertools = "0.10"
+sha2 = "0.10"
+nix = { version = "0.27", features = ["ioctl"] }
+libc = "0.2"
+regex = "1.10"
+prettytable-rs = "0.10"
