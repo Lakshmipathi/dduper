@@ -3,6 +3,7 @@
 Cargo.lock
 
 # Python
+.venv/
 *.pyc
 __pycache__/
 *.pyo

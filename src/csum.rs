@@ -11,9 +11,12 @@ use crate::db::CsumDb;
 // 4KB block size (BTRFS default)
 pub const BLK_SIZE: u64 = 4;
 
-static CSUM_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"0x[0-9a-fA-F]+").unwrap());
+// Matches hex values with or without 0x prefix
+static CSUM_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:0x)?[0-9a-fA-F]{2,}").unwrap());
 
-/// Parse btrfs dump-csum output to extract hex checksum values
+/// Parse btrfs dump-csum output to extract hex checksum values.
+/// Handles both `0x1234abcd` and bare `1234abcd` formats.
 pub fn parse_btrfs_csum_output(output: &str) -> Vec<String> {
     let mut csums = Vec::new();
     for line in output.lines() {
@@ -187,10 +190,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_btrfs_csum_output() {
+    fn test_parse_btrfs_csum_output_with_prefix() {
         let output = "0x12345678 0xabcdef01\n0xdeadbeef\n";
         let csums = parse_btrfs_csum_output(output);
         assert_eq!(csums, vec!["0x12345678", "0xabcdef01", "0xdeadbeef"]);
+    }
+
+    #[test]
+    fn test_parse_btrfs_csum_output_bare_hex() {
+        let output = "b9ad82f7 aef24db7 7d58f506 e8fdba47\n12345678\n";
+        let csums = parse_btrfs_csum_output(output);
+        assert_eq!(
+            csums,
+            vec!["b9ad82f7", "aef24db7", "7d58f506", "e8fdba47", "12345678"]
+        );
     }
 
     #[test]
