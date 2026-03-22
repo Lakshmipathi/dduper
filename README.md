@@ -1,10 +1,29 @@
-dduper 
+dduper
 ------
 
 dduper is a block-level [out-of-band](https://btrfs.wiki.kernel.org/index.php/Deduplication#Out_of_band_.2F_batch_deduplication) BTRFS dedupe tool. This works by
 fetching built-in checksum from BTRFS csum-tree, instead of reading file blocks
-and computing checksum itself. This *hugely* improves the performance. Please be aware that dduper is beta quality tool, so _validate_ it, before running it on your 
-critical data.
+and computing checksum itself. This *hugely* improves the performance.
+
+Available in both Python and Rust. Please be aware that dduper is beta quality tool, so _validate_ it, before running it on your critical data.
+
+### Performance
+
+dduper is **~40x faster** than traditional SHA256-based approaches because it reads
+checksums from BTRFS's internal csum-tree instead of reading file data from disk.
+
+| File Size | SHA256 (naive) | dduper Python | dduper Rust | Speedup |
+|-----------|---------------|---------------|-------------|---------|
+| 1 GB      | 8.68s         | 0.54s         | 0.26s       | 33x     |
+| 5 GB      | 41.62s        | 1.27s         | 1.03s       | 40x     |
+| 10 GB     | 83.05s        | 2.14s         | 2.09s       | 40x     |
+| 20 GB     | 168.62s       | 4.02s         | 4.18s       | 40x     |
+| 50 GB     | 422.88s       | 9.36s         | 10.23s      | 41x     |
+| 100 GB    | 850.20s       | 18.48s        | 20.29s      | 42x     |
+
+For a **100GB file pair**, SHA256 takes **14 minutes** while dduper takes **20 seconds**.
+
+See [BENCHMARK.md](BENCHMARK.md) for details and reproduction steps.
 
 Dedupe Files (default mode):
 ----------------------------
