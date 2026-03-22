@@ -183,8 +183,7 @@ Known Issues:
 - dduper supports ~~only~~ crc32. ~~Doesn't work with csum types like xxhash,blake2, sha256.~~
   Now Initial support available for xxhash64, blake2 and sha256.
 
-- ~~subvolume won't work with dduper~~
-- Initial support now available for subvolume, requires more testing.
+- ~~subvolume won't work with dduper~~ Initial support now available for subvolume, requires more testing.
 
 - Cannot yet de-duplicate identical content blocks within a single file
 
