@@ -117,13 +117,17 @@ def grouper(iterable, n, fillvalue=None):
 
 def get_ele_size(chunk_sz):
     global no_of_chunks, run_len
-    if chunk_sz <= 0 or chunk_sz % 128 != 0:
-        print("Ensure chunk size is of multiple 128KB. (128,256,512 etc)")
+    if chunk_sz <= 0 or chunk_sz % blk_size != 0:
+        print("Ensure chunk size is a multiple of %dKB. (%d, 8, 16, 32, 64, 128, 256 etc)" % (blk_size, blk_size))
         sys.exit(-1)
     no_of_chunks = chunk_sz // blk_size
-    ele_sz = no_of_chunks // 8
+    # For small chunk sizes (< 32KB), each csum is its own element
+    if no_of_chunks < 8:
+        ele_sz = max(no_of_chunks, 1)
+    else:
+        ele_sz = no_of_chunks // 8
     run_len = no_of_chunks * blk_size * 1024
-    # print("\n chunk_sz=%d, no_of_chunks=%d, eke_sz=%d ",chunk_sz, no_of_chunks, ele_sz)
+    # print("\n chunk_sz=%d, no_of_chunks=%d, ele_sz=%d ",chunk_sz, no_of_chunks, ele_sz)
     return ele_sz
 
 
@@ -653,7 +657,7 @@ if __name__ == '__main__':
                         dest='chunk_sz',
                         type=int,
                         default=128,
-                        help='Dedupe chunk size in KB',
+                        help='Dedupe chunk size in KB (must be multiple of 4)',
                         required=False)
 
     parser.add_argument('-v',

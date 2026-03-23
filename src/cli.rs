@@ -32,7 +32,7 @@ pub struct Opts {
     #[arg(short = 's', long = "skip")]
     pub skip: bool,
 
-    /// Dedupe chunk size in KB (default: 128, must be multiple of 128)
+    /// Dedupe chunk size in KB (default: 128, must be multiple of 4)
     #[arg(short = 'c', long = "chunk-size", default_value = "128")]
     pub chunk_size: u64,
 

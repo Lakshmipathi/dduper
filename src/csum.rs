@@ -139,14 +139,24 @@ pub fn get_hashes(
 }
 
 /// Calculate element size based on chunk size in KB.
-/// chunk_sz must be a positive multiple of 128.
+/// chunk_sz must be a positive multiple of BLK_SIZE (4KB).
 pub fn get_ele_size(chunk_sz: u64) -> Result<usize> {
-    if chunk_sz == 0 || !chunk_sz.is_multiple_of(128) {
-        bail!("Ensure chunk size is a multiple of 128KB (128, 256, 512, etc.)");
+    if chunk_sz == 0 || !chunk_sz.is_multiple_of(BLK_SIZE) {
+        bail!(
+            "Ensure chunk size is a multiple of {}KB (e.g., {}, 8, 16, 32, 64, 128, 256)",
+            BLK_SIZE,
+            BLK_SIZE
+        );
     }
-    let no_of_chunks = chunk_sz / BLK_SIZE;
-    let ele_sz = (no_of_chunks / 8) as usize;
-    Ok(ele_sz)
+    let no_of_csums = chunk_sz / BLK_SIZE;
+    // For small chunk sizes (4KB-28KB), each csum is its own element
+    let ele_sz = if no_of_csums < 8 {
+        no_of_csums as usize
+    } else {
+        (no_of_csums / 8) as usize
+    };
+    // ele_sz must be at least 1
+    Ok(ele_sz.max(1))
 }
 
 /// Auto-adjust chunk size based on file size for perfect matches.
@@ -214,7 +224,12 @@ mod tests {
 
     #[test]
     fn test_get_ele_size_valid() {
-        assert_eq!(get_ele_size(128).unwrap(), 4);
+        // Small chunk sizes: no_of_csums < 8, ele_sz = no_of_csums
+        assert_eq!(get_ele_size(4).unwrap(), 1);   // 4/4=1 csum
+        assert_eq!(get_ele_size(8).unwrap(), 2);   // 8/4=2 csums
+        assert_eq!(get_ele_size(16).unwrap(), 4);  // 16/4=4 csums
+        // Large chunk sizes: no_of_csums >= 8, ele_sz = no_of_csums/8
+        assert_eq!(get_ele_size(128).unwrap(), 4);  // 128/4/8=4
         assert_eq!(get_ele_size(256).unwrap(), 8);
         assert_eq!(get_ele_size(512).unwrap(), 16);
         assert_eq!(get_ele_size(1024).unwrap(), 32);
@@ -223,8 +238,9 @@ mod tests {
     #[test]
     fn test_get_ele_size_invalid() {
         assert!(get_ele_size(0).is_err());
-        assert!(get_ele_size(127).is_err());
-        assert!(get_ele_size(100).is_err());
+        assert!(get_ele_size(3).is_err());   // not multiple of 4
+        assert!(get_ele_size(5).is_err());   // not multiple of 4
+        assert!(get_ele_size(127).is_err()); // not multiple of 4
     }
 
     #[test]
