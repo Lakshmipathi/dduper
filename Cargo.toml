@@ -6,6 +6,27 @@ edition = "2021"
 license = "GPL-2.0"
 description = "BTRFS block-level deduplication tool"
 
+[package.metadata.deb]
+maintainer = "Lakshmipathi Ganapathi <lakshmipathi.g@gmail.com>"
+copyright = "Lakshmipathi Ganapathi <lakshmipathi.g@gmail.com>"
+license-file = ["COPYING", "0"]
+extended-description = """\
+dduper performs BTRFS block-level deduplication by leveraging BTRFS
+checksums to detect duplicate blocks without re-reading file contents,
+making it significantly faster than offline dedup tools that re-hash
+data. Supports per-file and recursive directory dedup with an optional
+SQLite checksum cache."""
+section = "admin"
+priority = "optional"
+depends = "$auto, libc6"
+assets = [
+    ["target/release/dduper", "usr/sbin/dduper", "755"],
+    ["bin/btrfs.static", "usr/sbin/dduper-btrfs", "755"],
+    ["README.md", "usr/share/doc/dduper/README.md", "644"],
+    ["INSTALL.md", "usr/share/doc/dduper/INSTALL.md", "644"],
+    ["CHANGELOG", "usr/share/doc/dduper/changelog", "644"],
+]
+
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 rusqlite = { version = "0.31", features = ["bundled"] }

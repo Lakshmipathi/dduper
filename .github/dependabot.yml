@@ -1,0 +1,42 @@
+version: 2
+
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - rust
+    cooldown:
+      default-days: 5
+      semver-major-days: 14
+    groups:
+      cargo-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    cooldown:
+      # github-actions ecosystem does not support semver-classified
+      # cooldown keys; only default-days is honoured here.
+      default-days: 5
+    groups:
+      actions:
+        patterns:
+          - "*"
