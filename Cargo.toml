@@ -30,7 +30,7 @@ assets = [
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
-sha2 = "0.10"
+sha2 = "0.11"
 libc = "0.2"
 regex = "1"
 comfy-table = "7"
