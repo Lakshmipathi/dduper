@@ -136,7 +136,7 @@ fn sha256_file(path: &Path) -> Result<String> {
         }
         hasher.update(&buffer[..n]);
     }
-    Ok(format!("{:x}", hasher.finalize()))
+    Ok(hex::encode(hasher.finalize()))
 }
 
 /// Validate dedup results by comparing dst with its backup

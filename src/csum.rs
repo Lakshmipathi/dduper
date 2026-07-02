@@ -32,7 +32,7 @@ pub fn compute_csum_hash(csums: &[String]) -> String {
     let mut hasher = Sha256::new();
     let repr = format!("{:?}", csums);
     hasher.update(repr.as_bytes());
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 /// Fetch BTRFS checksums directly (no cache)
@@ -102,7 +102,7 @@ pub fn get_hashes(
         for (idx, csum) in csums.iter().enumerate() {
             let mut hasher = Sha256::new();
             hasher.update(csum.as_bytes());
-            let hash = format!("{:x}", hasher.finalize());
+            let hash = hex::encode(hasher.finalize());
 
             let entry = hash_map.entry(hash.clone()).or_default();
             if !entry.is_empty() {
@@ -122,7 +122,7 @@ pub fn get_hashes(
                 .join("");
             let mut hasher = Sha256::new();
             hasher.update(chunk_str.as_bytes());
-            let hash = format!("{:x}", hasher.finalize());
+            let hash = hex::encode(hasher.finalize());
 
             let entry = hash_map.entry(hash.clone()).or_default();
             if !entry.is_empty() {

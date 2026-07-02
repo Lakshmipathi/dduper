@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # branch:stable
@@ -49,10 +49,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
       - name: Run cargo-deny
-        uses: EmbarkStudios/cargo-deny-action@91bf2b620e09e18d6eb78b92e7861937469acedb  # v2.0.17
+        uses: EmbarkStudios/cargo-deny-action@bb137d7af7e4fb67e5f82a49c4fce4fad40782fe  # v2.0.20
         with:
           # No deny.toml in repo yet — restrict to checks that work without
           # configuration. Add `licenses` once a deny.toml is committed.
@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 0
 
@@ -89,19 +89,19 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a  # v3.35.2
+        uses: github/codeql-action/init@87557b9c84dde89fdd9b10e88954ac2f4248e463  # v4.36.1
         with:
           languages: rust
           queries: security-and-quality
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a  # v3.35.2
+        uses: github/codeql-action/autobuild@87557b9c84dde89fdd9b10e88954ac2f4248e463  # v4.36.1
 
       - name: Analyze
-        uses: github/codeql-action/analyze@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a  # v3.35.2
+        uses: github/codeql-action/analyze@87557b9c84dde89fdd9b10e88954ac2f4248e463  # v4.36.1
         with:
           category: "/language:rust"
 
@@ -113,7 +113,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
       - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
@@ -127,7 +127,7 @@ jobs:
 
       - name: Upload SARIF to GitHub Code Scanning
         if: always()
-        uses: github/codeql-action/upload-sarif@ce64ddcb0d8d890d2df4a9d1c04ff297367dea2a  # v3.35.2
+        uses: github/codeql-action/upload-sarif@87557b9c84dde89fdd9b10e88954ac2f4248e463  # v4.36.1
         with:
           sarif_file: trivy-results.sarif
           category: trivy
