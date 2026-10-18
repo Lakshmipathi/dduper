@@ -32,6 +32,11 @@ from timeit import default_timer as timer
 from filecmp import cmp
 from prettytable import PrettyTable
 
+try:
+    import csum_backend
+except ImportError:
+    csum_backend = None  # single-file install: use dump-csum binary directly
+
 #  4kb block size
 blk_size = 4
 #  no.of csum on single row - right now its 8
@@ -234,14 +239,18 @@ def auto_adjust_chunk_sz(src_file_sz, analyze):
 
 def do_btrfs_dump_csum(filename):
 
-    btrfs_bin = "/usr/sbin/btrfs.static"
-    if os.path.exists(btrfs_bin) is False:
-        btrfs_bin = "btrfs"
+    if csum_backend is not None:
+        out = csum_backend.dump_csum(filename, device_name)
+    else:
+        btrfs_bin = "/usr/sbin/btrfs.static"
+        if os.path.exists(btrfs_bin) is False:
+            btrfs_bin = "btrfs"
 
-    out = subprocess.Popen(
-        [btrfs_bin, 'inspect-internal', 'dump-csum', filename, device_name],
-        stdout=subprocess.PIPE,
-        close_fds=True).stdout.readlines()
+        out = subprocess.Popen(
+            [btrfs_bin, 'inspect-internal', 'dump-csum', filename,
+             device_name],
+            stdout=subprocess.PIPE,
+            close_fds=True).stdout.readlines()
 
     complete_hash = hashlib.sha256(str(out).encode('utf-8')).hexdigest()
     sqlite_insert_csum(filename, complete_hash, out)
@@ -696,12 +705,27 @@ if __name__ == '__main__':
         dest='analyze',
         help='Report deduplicate data status with different chunk size')
 
+    parser.add_argument('-b',
+                        '--csum-backend',
+                        action='store',
+                        dest='csum_backend',
+                        choices=['ioctl', 'dump-csum'],
+                        default=None,
+                        help='How to fetch csums: kernel ioctls on the '
+                             'mounted fs (default, no patched btrfs-progs '
+                             'needed) or the patched dump-csum binary')
+
     results = parser.parse_args()
 
     if not (results.dir_path or results.file_list):
         parser.error('No action requested, add --files or --dir')
 
     device_name = results.device_name
+    if csum_backend is not None:
+        csum_backend.configure(results.csum_backend or 'ioctl')
+    elif results.csum_backend == 'ioctl':
+        parser.error('csum_backend.py not installed, '
+                     '--csum-backend ioctl unavailable')
     skip = results.skip
     chunk_sz = results.chunk_sz
     fast_mode = results.fast_mode

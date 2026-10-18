@@ -17,8 +17,8 @@ To Install `dduper` binaries, execute following commands:
 ```
         git clone https://github.com/Lakshmipathi/dduper.git && cd dduper
         pip3 install -r requirements.txt
-        cp -v bin/btrfs.static /usr/sbin/     # this copies required btrfs binary.
-        cp -v dduper /usr/sbin/               # copy dduper script.
+        cp -v bin/btrfs.static /usr/sbin/     # only needed for --csum-backend dump-csum
+        cp -v dduper csum_backend.py /usr/sbin/   # copy dduper script and csum module.
 ```
 
 That's all. Now type `dduper --help` to list options and continue with README.md for usage.
@@ -40,8 +40,13 @@ Make sure to replace `/dev/sda1` with your btrfs device and `/btrfs_mnt` with bt
 
 Install from Source:
 --------------------
-`dduper` relies on BTRFS checksums. To expose these checksums to userspace you need to apply additional patch on btrfs-progs first.
-This introduces a new command to dump csum using `btrfs inspect-internal dump-csum`.
+`dduper` relies on BTRFS checksums. By default it reads them directly from the
+mounted filesystem using kernel ioctls (`csum_backend.py`, needs root and
+kernel >= 3.14) - no patched btrfs-progs required.
+
+The steps below build the optional `dump-csum` backend
+(`--csum-backend dump-csum`): a btrfs-progs patch that introduces
+`btrfs inspect-internal dump-csum`.
 
 If you are using latest btrfs-progs use `patch/btrfs-progs-v6.11/0001-Print-csum-for-a-given-file-on-stdout-with-subvolume.patch`.
 It supports files inside subvolumes and applies cleanly on btrfs-progs v6.11 through v6.15.
@@ -69,7 +74,7 @@ Steps should be similar to:
 ```
 	cd ~/dduper
 	pip install -r requirements.txt
-	cp -v dduper /usr/sbin/
+	cp -v dduper csum_backend.py /usr/sbin/
 ```
 
 7. Type `dduper --help` to list options and continue with README.md for usage.
