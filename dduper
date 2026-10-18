@@ -88,6 +88,17 @@ def sqlite_create_tables():
     cursor.execute("CREATE TABLE filehash (filename TEXT, short_hash  TEXT, processed INTEGER, valid INTEGER)")
     cursor.execute("CREATE TABLE btrfscsum (short_hash  TEXT, long_hash TEXT)")
 
+def sqlite_create_indexes():
+    global cursor
+    # Index the lookups dduper actually does: csum cache hits and
+    # processed/valid updates by filename, duplicate-group queries by
+    # short_hash, and long_hash fetches by short_hash. IF NOT EXISTS
+    # also upgrades dduper.db files created by older versions.
+    cursor.execute("CREATE INDEX IF NOT EXISTS filehash_filename_idx ON filehash (filename)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS filehash_short_hash_idx ON filehash (short_hash)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS btrfscsum_short_hash_idx ON btrfscsum (short_hash)")
+    sqlite_commit()
+
 def sqlite_commit():
     global connection
     connection.commit()
@@ -106,6 +117,7 @@ def sqlite_connection_open():
          connection = sqlite3.connect("dduper.db")
          cursor = connection.cursor()
          sqlite_create_tables()
+    sqlite_create_indexes()
 
 # Sqlite DB 
 
