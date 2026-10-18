@@ -1,0 +1,11 @@
+.git
+bin/
+lib/
+lib64/
+pyvenv.cfg
+btrfs-progs/
+target/
+__pycache__/
+dduper.db
+*.log
+*.img

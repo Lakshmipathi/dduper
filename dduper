@@ -323,6 +323,14 @@ def do_dedupe(src_file, dst_file, dry_run):
                 bkup2 = subprocess.Popen(
                     ['cp', '--reflink=always', dst_file, bkup_file],
                     stdout=subprocess.PIPE)
+                # validate_results() restores from this backup, so don't
+                # dedupe this pair unless the backup copy really succeeded.
+                if bkup2.wait() != 0:
+                    print("Error: backup copy failed for " + dst_file +
+                          " - skipping this pair")
+                    os.close(src_fd)
+                    os.close(dst_fd)
+                    return 0
             print("*" * 24)
             # print "matched regions"
             for location in matched_keys:

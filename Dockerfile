@@ -1,9 +1,9 @@
-FROM debian:bullseye-slim AS build
+FROM debian:bookworm-slim AS build
 MAINTAINER Lakshmipathi.G
 
 # Install build dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends autoconf automake gcc \
-    make pkg-config e2fslibs-dev libblkid-dev zlib1g-dev liblzo2-dev \
+    make pkg-config libext2fs-dev libblkid-dev zlib1g-dev liblzo2-dev \
     python3-dev libzstd-dev python3-pip python3-setuptools patch
 
 # Clone btrfs-progs repo
@@ -32,7 +32,7 @@ RUN make btrfs.static
 RUN cp btrfs.static /btrfs-progs-build
 
 # Install dduper
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 COPY --from=build /lib/x86_64-linux-gnu/liblzo2.so.2 /lib/x86_64-linux-gnu/
 COPY --from=build /btrfs-progs-build /btrfs-progs
 COPY . /dduper
@@ -46,7 +46,7 @@ WORKDIR /dduper
 # Install runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends python3-pip python3-setuptools && \
-    pip3 install -r requirements.txt && \
+    pip3 install --break-system-packages -r requirements.txt && \
     apt-get remove -y python3-pip python3-setuptools && \
     rm -rf /var/lib/apt/lists/* && \
     cp -v dduper /usr/sbin/ && \
