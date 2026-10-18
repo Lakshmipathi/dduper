@@ -7,14 +7,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends autoconf automa
     python3-dev libzstd-dev python3-pip python3-setuptools patch
 
 # Clone btrfs-progs repo
-ADD --checksum=sha256:e6512ff305963bc68f11803fa759fecbead778a3a951aeb4f7f3f76dabb31db4 https://github.com/kdave/btrfs-progs/archive/refs/tags/v6.1.3.tar.gz /btrfs-progs.tar.gz
+ADD --checksum=sha256:ba1b8017b82e22f874fb3b09805ac4f45e3265888dc56eaf4449f38f896f6fc4 https://github.com/kdave/btrfs-progs/archive/refs/tags/v6.11.tar.gz /btrfs-progs.tar.gz
 
-COPY patch/btrfs-progs-v6.1 /patch
+COPY patch/btrfs-progs-v6.11 /patch
 
-# Apply csum patch
+# Apply csum patch (subvolume-aware version)
 WORKDIR /btrfs-progs
 RUN tar --strip-components 1 -xzf /btrfs-progs.tar.gz && \
-    patch -p1 < /patch/0001-Print-csum-for-a-given-file-on-stdout.patch
+    patch -p1 < /patch/0001-Print-csum-for-a-given-file-on-stdout-with-subvolume.patch
 
 # Start the btrfs-progs build
 RUN ./autogen.sh

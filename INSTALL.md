@@ -43,13 +43,19 @@ Install from Source:
 `dduper` relies on BTRFS checksums. To expose these checksums to userspace you need to apply additional patch on btrfs-progs first.
 This introduces a new command to dump csum using `btrfs inspect-internal dump-csum`.
 
-If you are using latest btrfs-progs you can get it from this repo `patch/btrfs-progs-v5.6.1/`.
+If you are using latest btrfs-progs use `patch/btrfs-progs-v6.11/0001-Print-csum-for-a-given-file-on-stdout-with-subvolume.patch`.
+It supports files inside subvolumes and applies cleanly on btrfs-progs v6.11 through v6.15.
+
+Note: the older `0001-Print-csum-for-a-given-file-on-stdout.patch` files (including the one in the same
+`patch/btrfs-progs-v6.11/` directory) do not support subvolumes: for a file inside a subvolume, `dump-csum`
+returns empty output or another file's checksums. Use them only for older btrfs-progs releases on
+filesystems without subvolumes.
 
 Steps should be similar to:
 
 1. git clone https://github.com/Lakshmipathi/dduper.git && cd dduper
 2. git clone https://github.com/kdave/btrfs-progs.git && cd btrfs-progs
-3. Apply the patch like `patch -p1 < ../patch/btrfs-progs-v5.9/0001-Print-csum-for-a-given-file-on-stdout.patch`
+3. Apply the patch like `patch -p1 < ../patch/btrfs-progs-v6.11/0001-Print-csum-for-a-given-file-on-stdout-with-subvolume.patch`
 4. Now compile and install btrfs-progs.
 5. After successful compilation, you should see following `dump-csum` option.
 
