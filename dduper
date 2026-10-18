@@ -711,9 +711,10 @@ if __name__ == '__main__':
                         dest='csum_backend',
                         choices=['ioctl', 'dump-csum'],
                         default=None,
-                        help='How to fetch csums: kernel ioctls on the '
-                             'mounted fs (default, no patched btrfs-progs '
-                             'needed) or the patched dump-csum binary')
+                        help='How to fetch csums: the patched dump-csum '
+                             'binary or kernel ioctls on the mounted fs '
+                             '(no patched btrfs-progs needed). Default: '
+                             'dump-csum when available, ioctl otherwise')
 
     results = parser.parse_args()
 
@@ -722,7 +723,7 @@ if __name__ == '__main__':
 
     device_name = results.device_name
     if csum_backend is not None:
-        csum_backend.configure(results.csum_backend or 'ioctl')
+        csum_backend.configure(results.csum_backend)
     elif results.csum_backend == 'ioctl':
         parser.error('csum_backend.py not installed, '
                      '--csum-backend ioctl unavailable')

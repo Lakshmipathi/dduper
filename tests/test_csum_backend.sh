@@ -125,8 +125,8 @@ exclusive_bytes() {
 }
 before=$(exclusive_bytes "$MNT/sub1")
 cd "$WORKDIR"  # dduper writes dduper.db / dduper.log into cwd
-"$PYTHON" "$TOPDIR/dduper" --fast-mode --device "$LOOP" --recurse \
-    --dir "$MNT/sub1" > dduper.out 2>&1
+"$PYTHON" "$TOPDIR/dduper" --csum-backend ioctl --fast-mode --device "$LOOP" \
+    --recurse --dir "$MNT/sub1" > dduper.out 2>&1
 status=$?
 sync  # commit clone metadata before measuring extent sharing
 after=$(exclusive_bytes "$MNT/sub1")

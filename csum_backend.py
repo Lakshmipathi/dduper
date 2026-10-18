@@ -7,13 +7,20 @@
 #
 # Two backends are provided:
 #
+#   dump-csum - runs `btrfs inspect-internal dump-csum <file> <device>`,
+#             which needs btrfs-progs built with the dduper dump-csum
+#             patch (see patch/ directory). This is the original backend
+#             and the preferred one when the patched binary is installed.
 #   ioctl   - reads the csum tree of a *mounted* filesystem directly via
 #             the kernel ioctls BTRFS_IOC_INO_LOOKUP, BTRFS_IOC_FS_INFO
 #             and BTRFS_IOC_TREE_SEARCH_V2. Needs root (CAP_SYS_ADMIN),
 #             which dduper requires anyway. No patched btrfs-progs needed.
-#   binary  - runs `btrfs inspect-internal dump-csum <file> <device>`,
-#             which needs btrfs-progs built with the dduper dump-csum
-#             patch (see patch/ directory). This is the original backend.
+#
+# By default the dump-csum binary is used when a capable one is found,
+# with ioctl as the fallback: when no patched btrfs-progs is installed,
+# and per file when the binary returns no output (older dump-csum builds
+# do that for files inside subvolumes). Pass 'ioctl' or 'dump-csum' to
+# configure() to force one backend with no fallback.
 #
 # The ioctl backend produces byte-identical output to the dump-csum
 # binary (including its quirks: the 8-csums-per-line counter runs across
@@ -216,28 +223,47 @@ def _ioctl_dump_csum(filename):
 
 # --- binary (dump-csum) backend --------------------------------------------
 
-def _binary_dump_csum(filename, device):
-    """Original backend: patched `btrfs inspect-internal dump-csum`."""
+def _binary_path():
     btrfs_bin = "/usr/sbin/btrfs.static"
     if os.path.exists(btrfs_bin) is False:
         btrfs_bin = "btrfs"
+    return btrfs_bin
+
+
+def _binary_dump_csum(filename, device):
+    """Original backend: patched `btrfs inspect-internal dump-csum`."""
     return subprocess.Popen(
-        [btrfs_bin, 'inspect-internal', 'dump-csum', filename, device],
+        [_binary_path(), 'inspect-internal', 'dump-csum', filename, device],
         stdout=subprocess.PIPE,
         close_fds=True).stdout.readlines()
 
 
+def _binary_usable():
+    """True if the btrfs binary knows the dump-csum command."""
+    try:
+        proc = subprocess.Popen(
+            [_binary_path(), 'inspect-internal', 'dump-csum', '--help'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+        proc.communicate()
+        return proc.returncode == 0
+    except OSError:
+        return False
+
+
 # --- backend selection ------------------------------------------------------
 
-_requested = 'ioctl'
-_probed = False
+_requested = None    # None: dump-csum when available, ioctl as fallback
+_active = None
+_ioctl_probed = False
 
 
 def configure(requested):
-    """Set the backend: 'ioctl' (default) or 'dump-csum'."""
-    global _requested, _probed
+    """Set the backend: 'ioctl', 'dump-csum', or None (the default:
+    dump-csum when a capable binary is installed, ioctl otherwise)."""
+    global _requested, _active, _ioctl_probed
     _requested = requested
-    _probed = False
+    _active = None
+    _ioctl_probed = False
 
 
 def _probe(filename):
@@ -263,13 +289,36 @@ def _probe(filename):
                          "--csum-backend dump-csum." % e)
 
 
+def _ioctl_ready(filename):
+    global _ioctl_probed
+    if not _ioctl_probed:
+        _probe(filename)
+        _ioctl_probed = True
+
+
 def dump_csum(filename, device):
     """Fetch csums for filename, list of bytes lines (readlines format)."""
-    global _probed
-    if _requested == 'dump-csum':
-        return _binary_dump_csum(filename, device)
-    if not _probed:
-        _probe(filename)
-        _probed = True
-        logging.debug("csum_backend: using ioctl backend")
+    global _active
+    if _active is None:
+        if _requested is None:
+            _active = 'dump-csum' if _binary_usable() else 'ioctl'
+        else:
+            _active = _requested
+        if _active == 'ioctl':
+            _ioctl_ready(filename)
+        logging.debug("csum_backend: using %s backend", _active)
+    if _active == 'dump-csum':
+        out = _binary_dump_csum(filename, device)
+        if len(out) == 0 and _requested is None:
+            # Older dump-csum builds print nothing for files inside
+            # subvolumes; the ioctl backend output is byte-compatible,
+            # so retry this file with it.
+            try:
+                _ioctl_ready(filename)
+            except SystemExit:
+                return out
+            logging.debug("csum_backend: dump-csum returned nothing for "
+                          "%s, retrying via ioctl", filename)
+            return _ioctl_dump_csum(filename)
+        return out
     return _ioctl_dump_csum(filename)

@@ -40,13 +40,13 @@ Make sure to replace `/dev/sda1` with your btrfs device and `/btrfs_mnt` with bt
 
 Install from Source:
 --------------------
-`dduper` relies on BTRFS checksums. By default it reads them directly from the
-mounted filesystem using kernel ioctls (`csum_backend.py`, needs root and
-kernel >= 3.14) - no patched btrfs-progs required.
+`dduper` relies on BTRFS checksums. It fetches them with the patched
+`btrfs inspect-internal dump-csum` command when such a binary is installed,
+and otherwise falls back to reading them directly from the mounted
+filesystem using kernel ioctls (`csum_backend.py`, needs root and
+kernel >= 3.14) - so a patched btrfs-progs is no longer strictly required.
 
-The steps below build the optional `dump-csum` backend
-(`--csum-backend dump-csum`): a btrfs-progs patch that introduces
-`btrfs inspect-internal dump-csum`.
+The steps below build the `dump-csum` capable btrfs-progs.
 
 If you are using latest btrfs-progs use `patch/btrfs-progs-v6.11/0001-Print-csum-for-a-given-file-on-stdout-with-subvolume.patch`.
 It supports files inside subvolumes and applies cleanly on btrfs-progs v6.11 through v6.15.
