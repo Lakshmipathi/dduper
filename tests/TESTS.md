@@ -1,5 +1,19 @@
 This file documents how to use test.py and how performance numbers calculated.
 
+csum backend test:
+------------------
+`test_csum_backend.sh` verifies the ioctl csum backend (csum_backend.py):
+byte-parity against the patched dump-csum binary and an end-to-end dedupe
+on a subvolume without patched btrfs-progs. It creates a 1GB loopback
+btrfs under /tmp and cleans up after itself.
+
+```
+sudo [PYTHON=/path/to/python3] [DUMP_CSUM_BIN=/path/to/patched/btrfs] \
+    bash tests/test_csum_backend.sh
+```
+
+
+
 ```
 mkfs.btrfs /dev/xvdc
 mount /dev/xvdc /mnt
