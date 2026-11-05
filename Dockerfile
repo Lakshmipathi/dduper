@@ -49,5 +49,5 @@ RUN apt-get update && \
     pip3 install --break-system-packages -r requirements.txt && \
     apt-get remove -y python3-pip python3-setuptools && \
     rm -rf /var/lib/apt/lists/* && \
-    cp -v dduper /usr/sbin/ && \
+    cp -v dduper csum_backend.py /usr/sbin/ && \
     dduper --version
